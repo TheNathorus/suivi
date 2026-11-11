@@ -1,0 +1,123 @@
+{
+ "maj": "2026-11-11",
+ "contact": {
+  "email": "",
+  "tel": ""
+ },
+ "biens": {
+  "1": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "2": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "3": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "4": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "5": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "6": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "7": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "8": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "9": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "10": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "11": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "12": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "13": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "14": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "15": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "16": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "17": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "18": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  },
+  "19": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-10",
+   "note": ""
+  }
+ }
+}

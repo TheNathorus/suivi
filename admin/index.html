@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>Suivi · Administration</title>
+<meta name="theme-color" content="#1f4f46">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/style.css?v=202611111314">
+<link rel="stylesheet" href="../assets/admin.css?v=202611111314">
+</head>
+<body class="admin">
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../" aria-label="Suivi, retour au site">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M7 16.2 16 8l9 8.200M10 14.600V23h4.600v-5h2.800v5H22v-8.400" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span><b>Suivi</b><small>Administration</small></span>
+    </a>
+    <a class="btn ghost small" href="../" target="_blank" rel="noopener">Voir le site <span aria-hidden="true">↗</span></a>
+    <button type="button" class="btn small" id="logout" hidden>Se déconnecter</button>
+  </div>
+</header>
+
+<main class="wrap a-main">
+  <section id="login" class="a-card" hidden>
+    <h1>Administration</h1>
+    <p class="lead small">Affichez ou masquez un bien, mettez à jour son suivi et réglez le bouton de contact. Chaque enregistrement publie le site en une à deux minutes.</p>
+    <form id="login-form" class="a-form">
+      <label class="fld" for="token">Jeton d’accès GitHub
+        <input type="password" id="token" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
+      </label>
+      <label class="optline"><input type="checkbox" id="remember" checked><span>Rester connecté sur cet appareil</span></label>
+      <p class="a-err" id="login-err" role="alert" hidden></p>
+      <button type="submit" class="btn primary" id="login-go">Se connecter</button>
+    </form>
+    <details class="fold">
+      <summary>Créer le jeton (une seule fois, 2 minutes)</summary>
+      <div class="foldbody">
+        <ol class="qlist">
+          <li>Connectez-vous à GitHub avec le compte propriétaire du dépôt <b>TheNathorus/suivi</b>.</li>
+          <li>Ouvrez <b>Settings</b>, <b>Developer settings</b>, <b>Personal access tokens</b>, <b>Fine-grained tokens</b>, puis <b>Generate new token</b>.</li>
+          <li>Nom : « Suivi admin ». Expiration : celle que vous voulez (un an au plus).</li>
+          <li><b>Repository access</b> : « Only select repositories », puis choisissez <b>suivi</b>.</li>
+          <li><b>Permissions</b>, <b>Repository permissions</b>, <b>Contents</b> : « Read and write ». Rien d’autre.</li>
+          <li>Générez le jeton, copiez-le et collez-le ci-dessus.</li>
+        </ol>
+        <p class="note">Le jeton reste dans ce navigateur et n’est envoyé qu’à GitHub. Sans lui, personne ne peut modifier le site depuis cette page. Vous pouvez le révoquer à tout moment dans GitHub.</p>
+      </div>
+    </details>
+  </section>
+
+  <div id="app" hidden>
+    <div class="a-head">
+      <div>
+        <h1>Biens publiés</h1>
+        <p class="lead small" id="a-sum"></p>
+      </div>
+      <div class="a-tools">
+        <label class="vh" for="a-q">Rechercher un bien</label>
+        <input type="search" id="a-q" placeholder="Rechercher un bien" autocomplete="off">
+      </div>
+    </div>
+    <ul class="a-list" id="a-list"></ul>
+
+    <section class="a-card" aria-labelledby="contact-t">
+      <h2 id="contact-t">Bouton « Proposer une visite »</h2>
+      <p class="note">Le bouton apparaît sur le site dès qu’une adresse ou un numéro est renseigné. Attention : ce contact devient public.</p>
+      <div class="a-two">
+        <label class="fld" for="c-email">Adresse e-mail
+          <input type="email" id="c-email" autocomplete="off" placeholder="prenom@exemple.fr">
+        </label>
+        <label class="fld" for="c-tel">Téléphone (si pas d’e-mail)
+          <input type="tel" id="c-tel" autocomplete="off" placeholder="06 00 00 00 00">
+        </label>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="cbar a-save" id="savebar" hidden>
+  <div class="wrap cbar-in">
+    <p id="save-msg" aria-live="polite"></p>
+    <div class="cbar-act">
+      <button type="button" class="btn ghost small" id="cancel">Annuler</button>
+      <button type="button" class="btn primary" id="save">Publier</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../assets/data.js?v=202611111314"></script>
+<script src="../assets/admin.js?v=202611111314"></script>
+</body>
+</html>
