@@ -9,11 +9,12 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const nf = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
-const STATUTS = { etude: 'À étudier', questions: 'Questions envoyées', visite: 'Visite à prévoir', vu: 'Visité', ecarte: 'Écarté' };
-const ANNONCES = { disponible: 'Disponible', prix: 'Prix modifié', compromis: 'Sous compromis', vendue: 'Vendue', retiree: 'Retirée', indisponible: 'Plus disponible', verifier: 'À vérifier' };
+/* Les statuts « Sous compromis », « Plus disponible », « Vendue » et « Retirée » sont aussi posés chaque matin par le robot
+   (scripts/verifier_annonces.py), dans ce même fichier. Une correction faite ici n'est jamais écrasée par le robot. */
+const STATUTS = { etude: 'À étudier', questions: 'Questions envoyées', visite: 'Visite à prévoir', vu: 'Visité', compromis: 'Sous compromis', plusdispo: 'Plus disponible', vendue: 'Vendue', retiree: 'Retirée', ecarte: 'Écarté' };
 const KEY = 'suivi.admin.token';
 
-let token = '', sha = '', saved = null, etat = null, busy = false, auto = {};
+let token = '', sha = '', saved = null, etat = null, busy = false;
 
 /* ---------- stockage du jeton ---------- */
 function readToken() { try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
@@ -46,7 +47,9 @@ function normalize(raw) {
   D.biens.forEach((h) => {
     const x = (raw && raw.biens && raw.biens[h.n]) || {};
     e.biens[h.n] = { visible: x.visible !== false, statut: STATUTS[x.statut] ? x.statut : 'etude', maj: x.maj || D.updated, note: x.note || '' };
-    if (ANNONCES[x.annonce]) e.biens[h.n].annonce = x.annonce;   /* absent = lecture automatique */
+    /* champs du robot, à conserver tels quels : auto (statut posé par le robot), avant (statut remplacé), vu (dernière lecture) */
+    if (x.auto === true && STATUTS[x.avant]) { e.biens[h.n].auto = true; e.biens[h.n].avant = x.avant; }
+    if (typeof x.vu === 'string' && x.vu) e.biens[h.n].vu = x.vu;
   });
   return e;
 }
@@ -55,8 +58,7 @@ function load() {
     if (r.status === 404) return r.json().then(() => { sha = ''; return normalize(null); });
     if (!r.ok) throw fail(r.status, false);
     return r.json().then((j) => { sha = j.sha; return normalize(JSON.parse(b64dec(j.content))); });
-  }).then((e) => fetch('../data/annonces.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null)
-    .then((a) => { auto = (a && a.biens) || {}; return e; }));
+  });
 }
 
 /* ---------- rendu ---------- */
@@ -75,8 +77,8 @@ function row(h) {
     '<div class="a-id"><h2>' + esc(h.label) + '</h2><p>' + nf(h.price) + ' € · ' + h.m2 + ' m² · réf. ' + h.n + ' · score ' + h.score + '</p>' +
       '<a href="../#bien-' + h.n + '" target="_blank" rel="noopener">Voir la fiche <span aria-hidden="true">↗</span></a></div>' +
     '<label class="switch"><input type="checkbox" role="switch" data-f="visible"' + (e.visible ? ' checked' : '') + '><span class="sw" aria-hidden="true"></span><span class="sw-l">' + (e.visible ? 'Affiché' : 'Masqué') + '</span></label>' +
-    '<label class="fld a-statut"><span>Suivi</span><select data-f="statut">' + Object.keys(STATUTS).map((k) => '<option value="' + k + '"' + (k === e.statut ? ' selected' : '') + '>' + STATUTS[k] + '</option>').join('') + '</select></label>' +
-    '<label class="fld a-annonce"><span>Annonce</span><select data-f="annonce"><option value="">Automatique' + (auto[h.n] && ANNONCES[auto[h.n].statut] ? ' (' + ANNONCES[auto[h.n].statut].toLowerCase() + ')' : '') + '</option>' + Object.keys(ANNONCES).map((k) => '<option value="' + k + '"' + (k === e.annonce ? ' selected' : '') + '>Forcer : ' + ANNONCES[k] + '</option>').join('') + '</select></label>' +
+    '<label class="fld a-statut"><span>Suivi</span><select data-f="statut">' + Object.keys(STATUTS).map((k) => '<option value="' + k + '"' + (k === e.statut ? ' selected' : '') + '>' + STATUTS[k] + '</option>').join('') + '</select>' +
+      (e.auto ? '<span class="a-hint">Posé par la vérification automatique des annonces (avant : ' + esc(STATUTS[e.avant]) + ')</span>' : '') + '</label>' +
     '<label class="fld a-note"><span>Note visible sur la fiche</span><input type="text" data-f="note" maxlength="140" value="' + esc(e.note) + '" placeholder="Ex. : visite le 14 novembre à 10 h"></label>' +
     '</li>';
 }
@@ -122,11 +124,19 @@ $('logout').addEventListener('click', () => {
 $('a-q').addEventListener('input', draw);
 $('a-list').addEventListener('change', (ev) => {
   const t = ev.target, li = t.closest('.a-row'); if (!li || !t.hasAttribute('data-f')) return;
-  const n = li.getAttribute('data-n'), e = etat.biens[n], f = t.getAttribute('data-f');
+  const n = li.getAttribute('data-n'), f = t.getAttribute('data-f');
+  let e = etat.biens[n];
   if (f === 'visible') e.visible = t.checked;
-  if (f === 'statut') { e.statut = t.value; e.maj = today(); }
+  if (f === 'statut') {
+    e.statut = t.value; e.maj = today();
+    /* un choix fait ici l'emporte : le statut n'est plus « posé par le robot » (la dernière lecture `vu` est conservée) */
+    if (t.value === saved.biens[n].statut) {   /* retour au statut publié : on retrouve aussi l'indication du robot */
+      etat.biens[n] = Object.assign(clone(saved.biens[n]), { visible: e.visible, note: e.note });
+    } else { delete e.auto; delete e.avant; }
+    const hint = li.querySelector('.a-hint'); if (hint) hint.hidden = !etat.biens[n].auto;
+  }
   if (f === 'note') { e.note = t.value.trim(); e.maj = today(); }
-  if (f === 'annonce') { if (t.value) e.annonce = t.value; else delete e.annonce; }   /* ne change pas la date de suivi */
+  e = etat.biens[n];
   if (JSON.stringify({ v: e.visible, s: e.statut, n: e.note }) === JSON.stringify({ v: saved.biens[n].visible, s: saved.biens[n].statut, n: saved.biens[n].note })) e.maj = saved.biens[n].maj;
   if (f === 'visible') { li.classList.toggle('hid', !e.visible); li.querySelector('.sw-l').textContent = e.visible ? 'Affiché' : 'Masqué'; }
   li.classList.toggle('chg', JSON.stringify(e) !== JSON.stringify(saved.biens[n]));

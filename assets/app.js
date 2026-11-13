@@ -25,15 +25,21 @@ const store = {
   set(k, v) { try { localStorage.setItem('suivi.' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
 };
 
-/* ---------- suivi (statuts) ---------- */
+/* ---------- suivi (statuts) : un seul système, piloté par l'administration (data/etat.json) ----------
+   Le robot du matin (scripts/verifier_annonces.py) change ces statuts dans la même base que l'administrateur. */
 const STATUTS = {
   etude: 'À étudier',
   questions: 'Questions envoyées',
   visite: 'Visite à prévoir',
   vu: 'Visité',
+  compromis: 'Sous compromis',
+  plusdispo: 'Plus disponible',
+  vendue: 'Vendue',
+  retiree: 'Retirée',
   ecarte: 'Écarté'
 };
-/* ---------- état de l'annonce (vérifié chaque matin par scripts/verifier_annonces.py) ---------- */
+const HORS_LIGNE = { plusdispo: 1, vendue: 1, retiree: 1 };   /* annonce plus en ligne : bien grisé, en fin de liste */
+/* ---------- lecture de l'annonce (information seulement : prix, historique, date de vérification) ---------- */
 const ANNONCES = {
   disponible: 'Disponible',
   prix: 'Prix modifié',
@@ -48,19 +54,15 @@ function dateC(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
   return m ? (+m[3] === 1 ? '1er' : +m[3]) + ' ' + MOIS_C[+m[2] - 1] : '';
 }
-/* Statut d'annonce d'un bien : la correction manuelle de l'administration l'emporte sur la lecture automatique. */
-function lireAnnonce(h, a, v, force) {
-  const auto = a && ANNONCES[a.statut] ? a : null;
-  const statut = ANNONCES[force] ? force : auto ? auto.statut : '';
-  if (!statut) return null;
-  const x = auto || {};
+/* Ce que le robot a lu dans l'annonce : prix, historique, dates. Le statut, lui, vient de la base de l'administration. */
+function lireAnnonce(a, v) {
+  if (!a || !ANNONCES[a.statut]) return null;
   return {
-    statut, auto: auto ? auto.statut : '', force: !!ANNONCES[force],
-    prix: x.prix || 0, ancien: statut === 'prix' || x.ancien ? x.ancien || 0 : 0, depuis: x.depuis || '',
-    verifie: (v && v.ok) || '', hist: (x.hist || []).slice().reverse()
+    statut: a.statut, prix: a.prix || 0, ancien: a.statut === 'prix' ? a.ancien || 0 : 0, depuis: a.depuis || '',
+    verifie: (v && v.ok) || '', hist: (a.hist || []).slice().reverse()
   };
 }
-const sorti = (h) => h.an && (h.an.statut === 'vendue' || h.an.statut === 'retiree' || h.an.statut === 'indisponible');
+const sorti = (h) => !!HORS_LIGNE[h.statut];
 let H = [];
 let CONTACT = { email: '', tel: '' };
 function applyEtat(etat, ann, ver) {
@@ -68,11 +70,12 @@ function applyEtat(etat, ann, ver) {
   const ab = (ann && ann.biens) || {}, vb = (ver && ver.biens) || {};
   H = D.biens.filter((h) => !(eb[h.n] && eb[h.n].visible === false)).map((h) => {
     const e = eb[h.n] || {};
-    const an = lireAnnonce(h, ab[h.n], vb[h.n], e.annonce);
+    const an = lireAnnonce(ab[h.n], vb[h.n]);
     const price = an && an.prix ? an.prix : h.price;   /* prix lu dans l'annonce, sinon prix de la liste */
     return Object.assign({}, h, {
       price, ppm: Math.round(price / h.m2), an,
       statut: STATUTS[e.statut] ? e.statut : 'etude',
+      auto: !!e.auto && STATUTS[e.avant] ? e.avant : '',   /* statut posé par le robot : ce qu'il a remplacé */
       maj: e.maj || D.updated,
       suivi: e.note || ''
     });
@@ -124,28 +127,29 @@ function cardChips(h) {
 }
 const dpeBadge = (c) => '<span class="dpe dpe-' + esc(c) + '" title="Diagnostic de performance énergétique">DPE ' + esc(c) + '</span>';
 const statutBadge = (h) => '<span class="statut s-' + h.statut + '">' + esc(STATUTS[h.statut]) + '</span>';
-/* Pastille d'état de l'annonce (texte et couleur) et ligne de détail. */
-const annonceBadge = (h) => h.an ? '<span class="annonce a-' + h.an.statut + '"><span class="adot" aria-hidden="true"></span>' + esc(ANNONCES[h.an.statut]) + '</span>' : '';
+/* Informations tirées de l'annonce, sous le statut : variation de prix, date de mise hors ligne, dernière vérification. */
 function annonceDetail(h) {
-  const a = h.an; if (!a) return '';
-  const t = [];
-  if (a.statut === 'prix' && a.ancien && a.prix) t.push('avant ' + eur(a.ancien));
-  if (a.statut === 'vendue' || a.statut === 'retiree' || a.statut === 'indisponible' || a.statut === 'compromis') t.push('depuis le ' + dateC(a.depuis));
-  if (a.statut === 'verifier') t.push('lecture bloquée, aucune conclusion');
-  if (a.force) t.push('indiqué à la main');
-  else if (a.verifie) t.push('vérifiée le ' + dateC(a.verifie));
-  return t.filter((x) => x && x !== 'depuis le ').join(' · ');
+  const a = h.an, t = [];
+  if (a && a.statut === 'prix' && a.ancien) t.push('Prix modifié, avant ' + eur(a.ancien));
+  if (a && a.depuis && (a.statut === 'indisponible' || a.statut === 'vendue' || a.statut === 'retiree')) t.push('annonce hors ligne depuis le ' + dateC(a.depuis));
+  if (a && a.verifie) t.push('annonce vérifiée le ' + dateC(a.verifie));
+  if (a && a.statut === 'verifier') t.push('lecture bloquée, à vérifier sur l’annonce');
+  return t.join(' · ');
 }
-/* sansBadge : sur la carte d'un bien sorti, la pastille est déjà en haut de la photo. */
-const annonceLine = (h, sansBadge) => h.an ? '<p class="annonce-l a-' + h.an.statut + '">' + (sansBadge ? '' : annonceBadge(h)) + '<span class="muted">' + esc(annonceDetail(h)) + '</span></p>' : '';
+const annonceLine = (h) => annonceDetail(h) ? '<p class="annonce-l muted">' + esc(annonceDetail(h)) + '</p>' : '';
 const prixAncien = (h) => h.an && h.an.statut === 'prix' && h.an.ancien ? '<s class="old">' + eur(h.an.ancien) + '</s>' : '';
+const NOTES_STATUT = {
+  plusdispo: 'Le site de l’annonce indique qu’elle n’est plus disponible, sans en donner la raison : vendue, retirée ou simplement en pause. Le bien reste affiché pour garder l’historique.',
+  vendue: 'Cette annonce n’est plus en ligne : le bien reste affiché pour garder l’historique.',
+  retiree: 'Cette annonce n’est plus en ligne : le bien reste affiché pour garder l’historique.',
+  compromis: 'L’annonce indique que le bien est sous compromis.'
+};
 function annonceBloc(h) {
-  if (!h.an) return '';
-  const ev = h.an.hist.slice(0, 6).map((e) => '<li><b>' + dateC(e.d) + '</b> ' + esc(ANNONCES[e.s] || '') + (e.a && e.p ? ' (' + eur(e.a) + ' → ' + eur(e.p) + ')' : e.p && e.s !== 'verifier' ? ' · ' + eur(e.p) : '') + '</li>').join('');
-  return '<div class="f-annonce a-' + h.an.statut + '">' + annonceLine(h) +
-    (h.an.statut === 'vendue' || h.an.statut === 'retiree' ? '<p class="note">Cette annonce n’est plus en ligne : le bien reste affiché pour garder l’historique.</p>' : '') +
-    (h.an.statut === 'indisponible' ? '<p class="note">Le site de l’annonce indique qu’elle n’est plus disponible, sans en donner la raison : vendue, retirée ou simplement en pause. Le bien reste affiché pour garder l’historique.</p>' : '') +
-    (h.an.statut === 'verifier' ? '<p class="note">Le site de l’annonce bloque la lecture automatique. Ouvrez l’annonce d’origine pour vérifier.</p>' : '') +
+  const ev = h.an ? h.an.hist.slice(0, 6).map((e) => '<li><b>' + dateC(e.d) + '</b> ' + esc(ANNONCES[e.s] || '') + (e.a && e.p ? ' (' + eur(e.a) + ' → ' + eur(e.p) + ')' : e.p && e.s !== 'verifier' ? ' · ' + eur(e.p) : '') + '</li>').join('') : '';
+  const note = NOTES_STATUT[h.statut] || (h.an && h.an.statut === 'verifier' ? 'Le site de l’annonce bloque la lecture automatique. Ouvrez l’annonce d’origine pour vérifier.' : '');
+  const auto = h.auto ? '<p class="muted">Statut mis à jour automatiquement lors de la vérification de l’annonce (avant : ' + esc(STATUTS[h.auto]) + ').</p>' : '';
+  if (!annonceDetail(h) && !note && !ev && !auto) return '';
+  return '<div class="f-annonce">' + annonceLine(h) + auto + (note ? '<p class="note">' + esc(note) + '</p>' : '') +
     (ev ? '<details class="f-hist"><summary>Historique de l’annonce</summary><ul>' + ev + '</ul></details>' : '') + '</div>';
 }
 const titre = (h) => 'Maison ' + h.pieces + ' pièces';
@@ -177,7 +181,7 @@ function visible() {
     if (S.pool === 'create' && !(h.pool === 'N' && h.land >= 600)) return false;
     if (S.statut && h.statut !== S.statut) return false;
     for (const k in S.tog) if (S.tog[k] && !TOG[k].f(h)) return false;
-    if (q && norm(h.label + ' ' + h.notes + ' ' + titre(h) + ' ' + STATUTS[h.statut] + ' ' + (h.an ? ANNONCES[h.an.statut] : '')).indexOf(q) < 0) return false;
+    if (q && norm(h.label + ' ' + h.notes + ' ' + titre(h) + ' ' + STATUTS[h.statut]).indexOf(q) < 0) return false;
     return true;
   });
   const c = SORTS[S.sort] || SORTS.score;
@@ -233,13 +237,13 @@ function card(h, idx) {
       '<button type="button" class="car-nav prev" data-car="-1" aria-label="Photo précédente" hidden>‹</button>' +
       '<button type="button" class="car-nav next" data-car="1" aria-label="Photo suivante">›</button>' +
       '<span class="car-dots" aria-hidden="true">' + dots + '</span>' +
-      '<span class="car-top">' + (sorti(h) ? annonceBadge(h) : statutBadge(h)) + '<span class="pill" title="Score sur 100 selon nos critères"><b>' + h.score + '</b>/100</span></span>' +
+      '<span class="car-top">' + statutBadge(h) + '<span class="pill" title="Score sur 100 selon nos critères"><b>' + h.score + '</b>/100</span></span>' +
     '</div>' +
     '<div class="cbody">' +
       '<div class="chead"><div><h3><a href="#bien-' + h.n + '" tabindex="-1">' + esc(h.label) + '</a></h3><p class="ctype">' + titre(h) + ' · réf. ' + h.n + '</p></div>' +
       '<div class="cprice">' + prixAncien(h) + '<b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></div>' +
       '<p class="cfacts"><span>' + h.m2 + NBSP + 'm²</span><span>' + h.ch + NBSP + 'ch.</span><span>Terrain ' + nf(h.land) + NBSP + 'm²</span>' + dpeBadge(h.dpe) + '</p>' +
-      annonceLine(h, sorti(h)) + cardChips(h) +
+      annonceLine(h) + cardChips(h) +
       '<p class="cnotes">' + esc(h.notes) + '</p>' +
       '<div class="cact"><a class="btn primary small" href="#bien-' + h.n + '">Voir la fiche</a>' +
       '<label class="cmp"><input type="checkbox" data-cmp="' + h.n + '"' + (sel ? ' checked' : '') + '><span>Comparer</span></label></div>' +
@@ -247,7 +251,7 @@ function card(h, idx) {
 }
 
 /* ---------- tableau ---------- */
-const COLS = [['n', 'Réf.'], ['label', 'Commune'], ['price', 'Prix', 'priceAsc'], ['ppm', '€/m²', 'ppm'], ['m2', 'Surface', 'm2'], ['land', 'Terrain', 'land'], ['ch', 'Ch.'], ['dpe', 'DPE'], ['pool', 'Piscine'], ['suite', 'Suite'], ['dep', 'Dépendance'], ['clim', 'Clim'], ['gare', 'Gare', 'gare'], ['etat', 'État'], ['statut', 'Suivi'], ['annonce', 'Annonce'], ['score', 'Score', 'score']];
+const COLS = [['n', 'Réf.'], ['label', 'Commune'], ['price', 'Prix', 'priceAsc'], ['ppm', '€/m²', 'ppm'], ['m2', 'Surface', 'm2'], ['land', 'Terrain', 'land'], ['ch', 'Ch.'], ['dpe', 'DPE'], ['pool', 'Piscine'], ['suite', 'Suite'], ['dep', 'Dépendance'], ['clim', 'Clim'], ['gare', 'Gare', 'gare'], ['etat', 'État'], ['statut', 'Suivi'], ['score', 'Score', 'score']];
 function cell(h, k) {
   switch (k) {
     case 'n': return '<td class="num muted">' + h.n + '</td>';
@@ -266,7 +270,6 @@ function cell(h, k) {
     case 'suite': case 'dep': case 'clim': case 'etat': return '<td>' + chip(st(h, k).s, short(st(h, k))) + '</td>';
     case 'gare': return '<td>' + chip(st(h, 'gare').s, '≈ ' + h.gare + ' min') + '</td>';
     case 'statut': return '<td>' + statutBadge(h) + '</td>';
-    case 'annonce': return '<td>' + (annonceBadge(h) || '<span class="muted">Pas encore vérifiée</span>') + '</td>';
     case 'score': return '<td class="num"><b>' + h.score + '</b></td>';
   }
 }
@@ -528,7 +531,7 @@ function compare() {
   }).join('') + stat.map((r) => '<tr><th scope="row">' + r[0] + '</th>' + hs.map((h) => '<td>' + chip(st(h, r[1]).s, short(st(h, r[1]))) + '</td>').join('') + '</tr>').join('') +
     '<tr><th scope="row">En bref</th>' + hs.map((h) => '<td class="txt">' + esc(h.notes) + '</td>').join('') + '</tr>' +
     '<tr><th scope="row">Questions</th>' + hs.map((h) => '<td class="txt"><ol class="qlist">' + h.q.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol></td>').join('') + '</tr>' +
-    '<tr><th scope="row">Annonce</th>' + hs.map((h) => '<td>' + (annonceBadge(h) ? annonceBadge(h) + '<br>' : '') + '<a class="btn small" href="' + esc(h.url) + '" target="_blank" rel="noopener">Ouvrir <span aria-hidden="true">↗</span></a></td>').join('') + '</tr>';
+    '<tr><th scope="row">Annonce</th>' + hs.map((h) => '<td><a class="btn small" href="' + esc(h.url) + '" target="_blank" rel="noopener">Ouvrir <span aria-hidden="true">↗</span></a></td>').join('') + '</tr>';
   dC.innerHTML = '<header class="dh"><h2 id="cmp-t">Comparaison de ' + hs.length + ' biens</h2><button type="button" class="btn ghost small x" data-close aria-label="Fermer la comparaison">✕</button></header>' +
     '<div class="db"><div class="dacts"><button type="button" class="btn small" data-sendcmp>Préparer un e-mail</button><button type="button" class="btn small" data-printcmp>Imprimer</button><button type="button" class="btn small" data-linkcmp>Copier le lien</button></div><p class="note">Le fond vert marque la meilleure valeur de chaque ligne. Vert : présent dans l’annonce. Orange : à vérifier ou à créer. Rouge : absent.</p>' +
     '<div class="cmpwrap" tabindex="0" role="region" aria-label="Tableau de comparaison, défilement horizontal"><table class="cmpt" style="--n:' + hs.length + '"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
@@ -564,7 +567,7 @@ function printSheets(hs) {
   $('print').innerHTML = hs.map((h) => {
     let ph = '';
     for (let k = 0; k < Math.min(3, h.nph); k++) ph += '<img src="' + photo(h, k, 's') + '" alt="">';
-    return '<section class="sheet"><header><div><h1>' + esc(h.label) + '</h1><p>' + titre(h) + ' · réf. ' + h.n + ' · ' + esc(STATUTS[h.statut]) + (h.an && h.an.statut !== 'disponible' ? ' · annonce : ' + esc(ANNONCES[h.an.statut]).toLowerCase() : '') + '</p></div><div class="p-price"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></header>' +
+    return '<section class="sheet"><header><div><h1>' + esc(h.label) + '</h1><p>' + titre(h) + ' · réf. ' + h.n + ' · ' + esc(STATUTS[h.statut]) + '</p></div><div class="p-price"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></header>' +
       '<div class="p-photos">' + ph + '</div>' +
       '<table class="p-facts"><tr><th>Surface</th><td>' + h.m2 + ' m²</td><th>Terrain</th><td>' + nf(h.land) + ' m²</td><th>Chambres</th><td>' + h.ch + '</td></tr><tr><th>DPE</th><td>' + esc(h.dpe) + '</td><th>Année</th><td>' + (h.year || 'n. p.') + '</td><th>Gare</th><td>' + esc(h.gnote) + '</td></tr><tr><th>Score</th><td>' + h.score + ' / 100</td><th>Annonce</th><td colspan="3">' + esc(h.url.replace('https://www.', '')) + '</td></tr></table>' +
       '<p>' + esc(h.notes) + '</p>' +
