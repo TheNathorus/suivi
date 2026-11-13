@@ -10,7 +10,7 @@ const nf = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
 const STATUTS = { etude: 'À étudier', questions: 'Questions envoyées', visite: 'Visite à prévoir', vu: 'Visité', ecarte: 'Écarté' };
-const ANNONCES = { disponible: 'Disponible', prix: 'Prix modifié', compromis: 'Sous compromis', vendue: 'Vendue', retiree: 'Retirée', verifier: 'À vérifier' };
+const ANNONCES = { disponible: 'Disponible', prix: 'Prix modifié', compromis: 'Sous compromis', vendue: 'Vendue', retiree: 'Retirée', indisponible: 'Plus disponible', verifier: 'À vérifier' };
 const KEY = 'suivi.admin.token';
 
 let token = '', sha = '', saved = null, etat = null, busy = false, auto = {};

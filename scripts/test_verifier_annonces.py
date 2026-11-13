@@ -44,13 +44,13 @@ class Etat(unittest.TestCase):
     def test_compromis_vendue_retiree(self):
         obs = {i: OK() for i in range(1, 11)}
         res, ver, _, _ = jour(obs, {}, {}, J1)
-        obs[2] = OK(drapeau='compromis'); obs[3] = OK(drapeau='vendue'); obs[5] = (v.GONE, {})
+        obs[2] = OK(drapeau='compromis'); obs[3] = OK(drapeau='vendue'); obs[5] = (v.GONE, {'statut': 'retiree'})
         res, ver, ch, al = jour(obs, res, ver, J2)
         self.assertEqual([res[k]['statut'] for k in '235'], ['compromis', 'vendue', 'retiree'])
         self.assertEqual(len(ch), 3)
         self.assertEqual(al, [])
         # retirée puis une vendue qui disparaît : vendue reste vendue
-        obs[3] = (v.GONE, {})
+        obs[3] = (v.GONE, {'statut': 'retiree'})
         res, ver, _, _ = jour(obs, res, ver, J3)
         self.assertEqual(res['3']['statut'], 'vendue')
         # remise en ligne
@@ -58,6 +58,17 @@ class Etat(unittest.TestCase):
         res, ver, ch, _ = jour(obs, res, ver, J3)
         self.assertEqual(res['5']['statut'], 'disponible')
         self.assertTrue(any('disponible' in c[2] for c in ch))
+
+    def test_plus_disponible_sans_raison(self):
+        obs = {i: OK() for i in range(1, 11)}
+        res, ver, _, _ = jour(obs, {}, {}, J1)
+        obs[7] = (v.GONE, {'statut': 'indisponible'})
+        res, ver, ch, _ = jour(obs, res, ver, J2)
+        self.assertEqual(res['7']['statut'], 'indisponible')
+        self.assertEqual(ch, [(7, 'Bien 7', 'plus disponible')])
+        obs[7] = OK()
+        res, _, _, _ = jour(obs, res, ver, J3)
+        self.assertEqual(res['7']['statut'], 'disponible')
 
     def test_blocage_ne_conclut_rien(self):
         obs = {i: OK() for i in range(1, 11)}
@@ -85,7 +96,7 @@ class Etat(unittest.TestCase):
     def test_garde_fou_panne_du_site(self):
         obs = {i: OK() for i in range(1, 11)}
         res, ver, _, _ = jour(obs, {}, {}, J1)
-        obs = {i: (v.GONE, {}) for i in range(1, 11)}
+        obs = {i: (v.GONE, {'statut': 'retiree'}) for i in range(1, 11)}
         res2, ver2, ch, al = jour(obs, res, ver, J2)
         self.assertEqual(len(al), 1)
         self.assertEqual(ch, [])
@@ -94,16 +105,16 @@ class Etat(unittest.TestCase):
     def test_un_seul_retrait_passe(self):
         obs = {i: OK() for i in range(1, 11)}
         res, ver, _, _ = jour(obs, {}, {}, J1)
-        obs[1] = (v.GONE, {})
+        obs[1] = (v.GONE, {'statut': 'retiree'})
         res, _, _, al = jour(obs, res, ver, J2)
         self.assertEqual(res['1']['statut'], 'retiree')
         self.assertEqual(al, [])
 
     def test_confirmation_deux_lectures(self):
-        lectures = iter([(v.GONE, {}), OK()])
+        lectures = iter([(v.GONE, {'statut': 'retiree'}), OK()])
         self.assertEqual(v.observer_confirme('u', lambda url: next(lectures), 0), (v.BLOCKED, {}))
-        lectures = iter([(v.GONE, {}), (v.GONE, {})])
-        self.assertEqual(v.observer_confirme('u', lambda url: next(lectures), 0), (v.GONE, {}))
+        lectures = iter([(v.GONE, {'statut': 'retiree'}), (v.GONE, {'statut': 'retiree'})])
+        self.assertEqual(v.observer_confirme('u', lambda url: next(lectures), 0), (v.GONE, {'statut': 'retiree'}))
 
     def test_message_commit(self):
         m = v.message_commit([(4, 'Poulx', 'vendue')], False, [], J2, 10)
@@ -136,17 +147,17 @@ class Lecture(unittest.TestCase):
 
     def test_api_404_et_pages(self):
         self.fake({'realEstateAd.json': (404, {}, '')})
-        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'retiree'}))
         self.fake({'realEstateAd.json': (403, {}, ''), 'annonce/vente': (302, {'location': '/recherche/achat/nimes'}, '')})
-        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'retiree'}))
         self.fake({'realEstateAd.json': (403, {}, ''),
                    'annonce/vente': (200, {}, '<html><h1>Cette annonce n’est plus disponible</h1></html>')})
-        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'indisponible'}))
 
     def test_api_ok_mais_page_retiree(self):
         self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 390000})),
                    'annonce/vente': (200, {}, '<html><h1>Cette annonce n’est plus disponible</h1></html>')})
-        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'indisponible'}))
         self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 390000})),
                    'annonce/vente': (200, {}, '<html><h1>Maison à vendre</h1></html>')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), ('ok', {'prix': 390000, 'drapeau': None}))
