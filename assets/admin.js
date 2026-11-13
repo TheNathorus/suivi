@@ -16,7 +16,7 @@ const KEY = 'suivi.admin.token', SKEY = 'suivi.admin.sugkey';
 const TYPES = { proposition: 'Bien proposé', info: 'Information inexacte ou manquante', prix: 'Prix ou conditions modifiés', etat: 'État de l’annonce modifié', visite: 'Visite', reponse: 'Réponse à nos questions', comm: 'Commentaire à afficher' };
 const TRAITEES_MAX = 400;
 
-let token = '', sha = '', saved = null, etat = null, busy = false, sugs = [], pasted = [], sugMsg = '';
+let token = '', sha = '', saved = null, etat = null, busy = false, sugs = [], pasted = [], sugMsg = '', marques = {}, minuteur = 0;
 
 /* ---------- stockage du jeton ---------- */
 function readKey() { try { return localStorage.getItem(SKEY) || ''; } catch (e) { return ''; } }
@@ -143,7 +143,7 @@ function cleanSug(d) {
   return {
     id: String(d.id), bien: prop ? 0 : +d.bien, date: /^\d{4}-\d{2}-\d{2}/.test(String(d.date || '')) ? String(d.date) : '',
     nom: txt(d.nom, 60), types: (Array.isArray(d.types) ? d.types : String(d.types || '').split(',')).filter((k) => TYPES[k]),
-    statut: STATUTS[d.statut] ? d.statut : '', prix: prix >= 50000 && prix <= 3000000 ? prix : 0, texte: txt(d.texte, 600)
+    traite: d.traite === 'oui' || d.traite === 'non' ? d.traite : '', statut: STATUTS[d.statut] ? d.statut : '', prix: prix >= 50000 && prix <= 3000000 ? prix : 0, texte: txt(d.texte, 600)
   };
 }
 function fetchSug() {
@@ -157,13 +157,14 @@ function fetchSug() {
     .then((j) => {
       if (!j || j.ok === false) throw new Error('refus');
       sugs = (j.suggestions || []).map(cleanSug).filter(Boolean); sugMsg = '';
+      sugs.forEach((x) => { if (x.traite) delete marques[x.id]; });
     })
     .catch(() => { sugMsg = 'Impossible de lire les suggestions. Vérifiez l’adresse du formulaire et le mot de passe de lecture.'; })
     .then(drawSug);
 }
 function pending() {
   const seen = {}, out = [];
-  pasted.concat(sugs).forEach((x) => { if (!seen[x.id] && !etat.suggestions.traitees[x.id]) { seen[x.id] = 1; out.push(x); } });
+  pasted.concat(sugs).forEach((x) => { if (!seen[x.id] && !x.traite && !marques[x.id] && !etat.suggestions.traitees[x.id]) { seen[x.id] = 1; out.push(x); } });
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
 function drawSug() {
@@ -206,11 +207,32 @@ function traiter(id, decision, li) {
     if (x.prix && on('prix')) { e.prix = x.prix; e.maj = today(); }
     if (x.texte && on('note')) { e.note = li.querySelector('[data-sg="notetxt"]').value.trim().slice(0, 140); e.maj = today(); }
   }
+  const url = etat.suggestions.url, key = readKey();
+  if (url && key && !pasted.some((y) => y.id === id)) {
+    /* Le traitement est écrit dans le Google Sheet (colonne « traite ») : la suggestion ne revient plus, même sans cliquer sur Publier. */
+    marques[id] = decision;
+    fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'traite', cle: key, id: id, decision: decision }) }).catch(() => {});
+    clearTimeout(minuteur); minuteur = setTimeout(verifierMarques, 6000);
+  } else retenir(id, decision);
+  draw(); drawSug();
+  const modif = decision === 'oui' && x.bien && dirtyCount();
+  toast(decision === 'oui' ? (modif ? 'Appliqué. Cliquez sur Publier pour mettre le site à jour.' : 'Marqué comme traité.') : 'Suggestion écartée.');
+}
+/* Repli : mémorisé dans data/etat.json (nécessite Publier) quand la feuille ne peut pas l'enregistrer. */
+function retenir(id, decision) {
   etat.suggestions.traitees[id] = decision;
   const ids = Object.keys(etat.suggestions.traitees);
   if (ids.length > TRAITEES_MAX) ids.slice(0, ids.length - TRAITEES_MAX).forEach((k) => { delete etat.suggestions.traitees[k]; });
-  draw(); drawSug();
-  toast(decision === 'oui' ? 'Appliqué. Cliquez sur Publier pour mettre le site à jour.' : 'Suggestion écartée. Cliquez sur Publier pour l’enregistrer.');
+}
+/* Relit la feuille : une suggestion marquée mais que la feuille ne montre pas comme traitée (script pas à jour ?) est mémorisée à la place. */
+function verifierMarques() {
+  if (!Object.keys(marques).length || !etat) return;
+  fetchSug().then(() => {
+    const rest = Object.keys(marques); if (!rest.length) return;
+    rest.forEach((id) => { retenir(id, marques[id]); delete marques[id]; });
+    sugMsg = 'Le Google Sheet n’a pas enregistré le traitement (le script n’est peut-être pas à jour). Cliquez sur Publier pour le mémoriser dans le site.';
+    draw(); drawSug();
+  });
 }
 
 /* ---------- évènements ---------- */
