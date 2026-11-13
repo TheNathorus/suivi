@@ -66,7 +66,9 @@ Tests : `python3 scripts/test_verifier_annonces.py` (sans réseau).
 
 ## Suggestions des agents
 
-Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, cases à cocher, statut proposé, nouveau prix, texte). L'envoi arrive dans la page `/admin/`, section **Suggestions des agents** : pour chaque suggestion, des cases à cocher (passer le suivi à…, mettre le prix à…, mettre le texte dans la note) puis **Traiter** ou **Écarter**. Rien n'est publié tant que l'administrateur n'a pas cliqué sur **Publier** ; les suggestions traitées sont mémorisées dans `data/etat.json` (`suggestions.traitees`).
+Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, cases à cocher, statut proposé, nouveau prix, texte). L'envoi arrive dans la page `/admin/`, section **Suggestions des agents** : pour chaque suggestion, des cases à cocher (passer le suivi à…, mettre le prix à…, mettre le texte dans la note) puis **Traiter** ou **Écarter**. Dès qu'on clique sur **Traiter**, **Écarter** ou **Ajouté au comparateur**, la suggestion est marquée **traitée dans le Google Sheet** (colonnes `traite` et `traite_le`) : elle ne revient plus, même après « Actualiser » ou un rechargement, sans avoir besoin de **Publier**. Seuls les changements du site (suivi, prix, note) se publient avec **Publier**. Si le script n'est pas à jour, l'admin le signale et mémorise le traitement dans `data/etat.json` (`suggestions.traitees`, à publier).
+
+**Mettre à jour le script déjà déployé** : collez le nouveau `docs/suggestions-google-apps-script.gs`, remettez votre `CLE`, enregistrez, puis *Déployer*, *Gérer les déploiements*, crayon, *Version* : **Nouvelle version**, *Déployer*. L'adresse `/exec` ne change pas.
 
 **Activer le formulaire (une fois, 5 minutes, gratuit)**
 
