@@ -256,6 +256,14 @@ class Lecture(unittest.TestCase):
             return 0, {}, ''
         v.http_get = f
 
+    def test_seules_les_annonces_bienici_sont_lues(self):
+        self.assertTrue(v.surveillee('https://www.bienici.com/annonce/vente/nimes/maison/5pieces/x-1'))
+        self.assertFalse(v.surveillee('https://www.leboncoin.fr/ad/ventes_immobilieres/3228407854'))
+        self.assertFalse(v.surveillee('https://www.bienici.com.autre.fr/annonce/1'))
+        lues = v.lire_annonces()
+        self.assertTrue(lues)
+        self.assertTrue(all('bienici.com' in url for _, _, url, _ in lues))
+
     def test_api_ok_prix_et_drapeau(self):
         self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 345000, 'description': 'vendu avec meubles'}))})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), ('ok', {'prix': 345000, 'drapeau': None}))
