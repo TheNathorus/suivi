@@ -121,10 +121,26 @@
    "statut": "ecarte",
    "maj": "2026-11-11",
    "note": "10/11 : Bien écarté car proche d'une voie très passante avec des nuisances sonores. Vu avec l'agent immobilier."
+  },
+  "20": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-13",
+   "note": ""
+  },
+  "21": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-13",
+   "note": ""
   }
  },
  "suggestions": {
   "url": "https://script.google.com/macros/s/AKfycbwXD1gAvOMnYSg2mPC8wc-OQOlcjCvtdAfwds7Oj3GZqe5ZIpiqFx0dg5mzTH6p7JPu/exec",
-  "traitees": {}
+  "traitees": {
+   "mwf3o96m01p0": "oui",
+   "mwf37ln44gh6": "oui",
+   "mwf2x78asz9b": "oui"
+  }
  }
 }
