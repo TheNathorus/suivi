@@ -490,6 +490,9 @@ def message_commit(changements, premiere, alertes, aujourdhui, total, suivi=()):
         titre = f'Annonces {jour} : ' + ', '.join(courts)
         if len(titre) > 100:
             titre = f'Annonces {jour} : {len(changements)} changement' + ('s' if len(changements) > 1 else '')
+    elif suivi:
+        refs = ', '.join('réf. ' + n for n, _ in suivi)
+        titre = f'Annonces {jour} : suivi mis à jour ({refs})'
     else:
         titre = f'Vérification des annonces du {jour} : aucun changement'
     corps = [f'- {label} (réf. {n}) : {t}' for n, label, t in changements]

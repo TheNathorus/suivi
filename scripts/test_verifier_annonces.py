@@ -209,6 +209,10 @@ class Suivi(unittest.TestCase):
         e3, ch3 = v.synchroniser(e, {'1': {'statut': 'prix', 'prix': 270000}}, J3, base)
         self.assertEqual(e3['biens']['1']['prix'], 270000)    # nouveau prix sur le site : le robot suit
 
+    def test_titre_quand_seul_le_suivi_change(self):
+        m = v.message_commit([], False, [], J2, 10, [('18', 'suivi « À étudier » → « Plus disponible »')])
+        self.assertTrue(m.startswith('Annonces 15 nov. : suivi mis à jour (réf. 18)\n'))
+
     def test_message_avec_suivi(self):
         m = v.message_commit([(18, 'Redessan', 'plus disponible')], False, [], J2, 10, [('18', 'suivi « À étudier » → « Plus disponible »')])
         self.assertIn('Suivi réf. 18 : suivi « À étudier » → « Plus disponible »', m)
