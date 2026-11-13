@@ -1,3 +1,232 @@
 {
- "biens": {}
+ "biens": {
+  "1": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 398000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 398000,
+   "statut": "disponible"
+  },
+  "2": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 359000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 359000,
+   "statut": "disponible"
+  },
+  "3": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 415000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 415000,
+   "statut": "disponible"
+  },
+  "4": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 415000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 415000,
+   "statut": "disponible"
+  },
+  "5": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 285000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 285000,
+   "statut": "disponible"
+  },
+  "6": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 335000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 335000,
+   "statut": "disponible"
+  },
+  "7": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 410000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 410000,
+   "statut": "disponible"
+  },
+  "8": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 359000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 359000,
+   "statut": "disponible"
+  },
+  "9": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 395000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 395000,
+   "statut": "disponible"
+  },
+  "10": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 415000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 415000,
+   "statut": "disponible"
+  },
+  "11": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 415000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 415000,
+   "statut": "disponible"
+  },
+  "12": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 310000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 310000,
+   "statut": "disponible"
+  },
+  "13": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 395000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 395000,
+   "statut": "disponible"
+  },
+  "14": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 390000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 390000,
+   "statut": "disponible"
+  },
+  "15": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 369000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 369000,
+   "statut": "disponible"
+  },
+  "16": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 360000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 360000,
+   "statut": "disponible"
+  },
+  "17": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 380000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 380000,
+   "statut": "disponible"
+  },
+  "18": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 390000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 390000,
+   "statut": "disponible"
+  },
+  "19": {
+   "hist": [
+    {
+     "d": "2026-11-13",
+     "s": "disponible",
+     "p": 355000
+    }
+   ],
+   "depuis": "2026-11-13",
+   "prix": 355000,
+   "statut": "disponible"
+  }
+ }
 }
