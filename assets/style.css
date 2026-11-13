@@ -150,6 +150,14 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none
 .f-hist summary{cursor:pointer;font-size:.85rem;color:var(--accent);min-height:32px;display:flex;align-items:center}
 .f-hist ul{display:grid;gap:2px;font-size:.85rem;padding:4px 0 2px}
 .cmpt .annonce{margin-bottom:6px}
+/* bien qui n'est plus en ligne : une croix, jamais un point proche du vert */
+.a-vendue .adot,.a-retiree .adot,.a-indisponible .adot{width:auto;height:auto;border:0;border-radius:0;background:none;font-size:.7rem;line-height:1;font-weight:700;color:#55625c}
+.a-vendue .adot{color:var(--no)}
+.a-vendue .adot::before,.a-retiree .adot::before,.a-indisponible .adot::before{content:"\2715"}
+@media (prefers-color-scheme:dark){.a-retiree .adot,.a-indisponible .adot{background:none;color:#b8c4be}}
+/* pastille posée sur la photo : même style que la pastille de suivi */
+.car-top .annonce{border:0;box-shadow:0 1px 4px rgba(0,0,0,.2);background:#fff;color:#1b2622;padding:4px 10px}
+.car-top .a-vendue .adot{color:#9b2f27}.car-top .a-retiree .adot,.car-top .a-indisponible .adot{color:#55625c}
 td .statut,.f-meta .statut,.cmpt .statut{box-shadow:none;border:1px solid var(--line2);background:var(--surface);color:var(--fg)}
 .cbody{display:flex;flex-direction:column;gap:12px;padding:16px;flex:1}
 .chead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
