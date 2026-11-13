@@ -37,8 +37,8 @@ Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (
 | --- | --- |
 | Disponible | l'annonce est en ligne, sans changement |
 | Prix modifié | le prix a changé (ancien et nouveau prix affichés pendant 14 jours) |
-| Sous compromis | l'annonce l'indique |
-| Vendue | l'annonce l'écrit elle-même (deux lectures concordantes) |
+| Sous compromis | l'annonceur l'écrit dans le titre ou le début de la description (« sous compromis », « sous offre »…) |
+| Vendue | l'annonceur l'écrit dans le titre ou le début de la description (« VENDU », « vendue ! »…), deux lectures concordantes |
 | Plus disponible | la page reste en ligne mais affiche « Cette annonce n'est plus disponible », sans raison : vendue, retirée ou en pause (deux lectures concordantes) |
 | Retirée | page supprimée ou renvoyée vers une liste (deux lectures concordantes) |
 | À vérifier | le site a bloqué la lecture 3 jours de suite : aucune conclusion |

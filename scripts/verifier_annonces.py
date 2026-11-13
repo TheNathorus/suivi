@@ -123,6 +123,25 @@ def _prix(valeur):
     return None
 
 
+_TXT_COMPROMIS_ANNONCEUR = re.compile(
+    r"(?i)(sous[\s-]+compromis|sous[\s-]+offre|sous[\s-]+promesse|compromis\s+sign[eé]|offre\s+accept[eé]e)")
+_NON_VENTE = r"(?!\s+(avec|meubl|équip|en\s+l|sans|au\s+prix|par\s+))"
+_TXT_VENDU_ANNONCEUR = re.compile(
+    r"(\bVEND(U|UE)\b|^\W*(vendu|vendue)\b" + _NON_VENTE +
+    r"|(?i:\b(bien|maison|annonce)\s+(est\s+|désormais\s+|déjà\s+)?(vendu|vendue)\b" + _NON_VENTE + "))")
+
+
+def drapeau_texte(titre, description):
+    """Mentions écrites par l'annonceur dans le titre ou au début de la description.
+    Mots précis seulement : « vendu avec ses meubles » ne compte pas."""
+    texte = ((titre or '') + ' \n ' + (description or '')[:400])
+    if _TXT_VENDU_ANNONCEUR.search(texte):
+        return 'vendue'
+    if _TXT_COMPROMIS_ANNONCEUR.search(texte):
+        return 'compromis'
+    return None
+
+
 def lire_api(url):
     """Observation via l'API JSON publique du site. None si elle ne permet pas de conclure."""
     code, _, corps = http_get('https://www.bienici.com/realEstateAd.json?id=' +
@@ -140,6 +159,10 @@ def lire_api(url):
     drapeau = _drapeau_json({k: v for k, v in j.items() if k not in ('description', 'title')})
     if drapeau == 'retiree':
         return GONE, {'statut': 'indisponible'}
+    if drapeau is None:
+        titre = j.get('title') if isinstance(j.get('title'), str) else ''
+        desc = j.get('description') if isinstance(j.get('description'), str) else ''
+        drapeau = drapeau_texte(titre, desc)
     return 'ok', {'prix': _prix(j.get('price')), 'drapeau': drapeau}
 
 
@@ -169,7 +192,9 @@ def lire_page(url):
     if _PLUS_DISPO.search(corps):
         return GONE, {'statut': 'indisponible'}   # le site ne dit pas pourquoi
     titres = ' '.join(m.group(0) for m in _BALISES_TITRE.finditer(corps))
-    drapeau = 'vendue' if _TXT_VENDU.search(titres) else 'compromis' if _TXT_COMPROMIS.search(titres) else None
+    meta = re.search(r'(?is)<meta[^>]+(?:name|property)=["\'](?:og:)?description["\'][^>]*content=["\']([^"\']*)', corps)
+    drapeau = ('vendue' if _TXT_VENDU.search(titres) else 'compromis' if _TXT_COMPROMIS.search(titres) else None) \
+        or drapeau_texte(re.sub(r'<[^>]+>', ' ', titres), meta.group(1) if meta else '')
     m = re.search(r'"price"\s*:\s*(\d{5,7})', corps)
     prix = _prix(int(m.group(1))) if m else None
     if prix is None and drapeau is None:
@@ -196,6 +221,8 @@ def observer(url):
     if r is not None and r[0] == 'ok':
         # L'API peut encore renvoyer une fiche pour une annonce retirée : la page a le dernier mot.
         raison = raison_page(url)
+        if raison == 'indisponible' and r[1].get('drapeau') == 'vendue':
+            return r          # l'annonceur écrit « vendu » : plus précis que « plus disponible »
         return (GONE, {'statut': raison}) if raison else r
     if r is not None:
         return r

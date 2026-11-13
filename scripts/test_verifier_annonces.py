@@ -145,6 +145,24 @@ class Lecture(unittest.TestCase):
         self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 345000, 'status': 'under offer'}))})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1')[1]['drapeau'], 'compromis')
 
+    def test_mentions_de_l_annonceur(self):
+        cas = [('Maison 5 pièces', 'SOUS COMPROMIS - belle maison', 'compromis'),
+               ('Maison 5 pièces', 'Maison sous offre depuis lundi.', 'compromis'),
+               ('VENDU - Maison 5 pièces', 'x', 'vendue'),
+               ('Maison', 'Vendue ! Merci à tous.', 'vendue'),
+               ('Maison', 'Cette maison est vendue.', 'vendue'),
+               ('Maison', 'Maison vendue avec ses meubles et la piscine.', None),
+               ('Maison', 'Possibilité de compromis rapide, offre à discuter.', None),
+               ('Maison', 'Belle maison. ' + 'a' * 500 + ' sous compromis', None)]
+        for titre, desc, attendu in cas:
+            self.assertEqual(v.drapeau_texte(titre, desc), attendu, (titre, desc))
+        self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 345000, 'title': 'Maison', 'description': 'SOUS COMPROMIS. Maison lumineuse'}))})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), ('ok', {'prix': 345000, 'drapeau': 'compromis'}))
+        # « vendu » écrit par l'annonceur l'emporte sur « plus disponible »
+        self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 345000, 'title': 'VENDU - Maison', 'description': ''})),
+                   'annonce/vente': (200, {}, '<h1>Cette annonce n’est plus disponible</h1>')})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1')[1]['drapeau'], 'vendue')
+
     def test_api_404_et_pages(self):
         self.fake({'realEstateAd.json': (404, {}, '')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'retiree'}))
