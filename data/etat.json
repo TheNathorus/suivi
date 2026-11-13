@@ -112,8 +112,8 @@
    "statut": "plusdispo",
    "maj": "2026-11-13",
    "note": "",
-   "avant": "etude",
    "auto": true,
+   "avant": "etude",
    "vu": "indisponible"
   },
   "19": {
@@ -122,5 +122,9 @@
    "maj": "2026-11-11",
    "note": "10/11 : Bien écarté car proche d'une voie très passante avec des nuisances sonores. Vu avec l'agent immobilier."
   }
+ },
+ "suggestions": {
+  "url": "https://script.google.com/macros/s/AKfycbwXD1gAvOMnYSg2mPC8wc-OQOlcjCvtdAfwds7Oj3GZqe5ZIpiqFx0dg5mzTH6p7JPu/exec",
+  "traitees": {}
  }
 }
