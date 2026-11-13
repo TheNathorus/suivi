@@ -156,6 +156,14 @@ def lire_api(url):
         return None
     if not isinstance(j, dict) or 'price' not in j:
         return None
+    etat = j.get('status')
+    if isinstance(etat, dict) and etat.get('onTheMarket') is False:
+        # Le site a dépublié l'annonce (message « Cette annonce n'est plus disponible », sans raison).
+        info = {'statut': 'indisponible'}
+        fin = j.get('closingDate')
+        if isinstance(fin, str) and re.match(r'^\d{4}-\d{2}-\d{2}', fin):
+            info['depuis'] = fin[:10]
+        return GONE, info
     drapeau = _drapeau_json({k: v for k, v in j.items() if k not in ('description', 'title')})
     if drapeau == 'retiree':
         return GONE, {'statut': 'indisponible'}
@@ -292,9 +300,10 @@ def evoluer(prec, obs, base_prix, aujourdhui, verif_prec):
         statut = drapeau or ('prix' if recent else 'disponible')
 
     changement = []
+    depuis = info.get('depuis') or iso   # jour de dépublication annoncé par le site, sinon aujourd'hui
     if prec is None:
-        nouveau['depuis'] = iso
-        nouveau['hist'].append({'d': iso, 's': statut, 'p': prix})
+        nouveau['depuis'] = depuis
+        nouveau['hist'].append({'d': depuis, 's': statut, 'p': prix})
         if statut != 'disponible':
             changement.append(LIBELLES[statut].lower())
     else:
@@ -302,11 +311,11 @@ def evoluer(prec, obs, base_prix, aujourdhui, verif_prec):
         if prix_change:
             changement.append(f'prix {eur(prix_connu)} → {eur(prix)}')
         if statut != prec['statut']:
-            nouveau['depuis'] = iso
+            nouveau['depuis'] = depuis
             if not (statut == 'prix' and prix_change):
                 changement.append(LIBELLES[statut].lower())
         if prix_change or statut != prec['statut']:
-            ev = {'d': iso, 's': statut, 'p': prix}
+            ev = {'d': depuis if statut != prec['statut'] else iso, 's': statut, 'p': prix}
             if prix_change:
                 ev['a'] = prix_connu
             nouveau['hist'].append(ev)
