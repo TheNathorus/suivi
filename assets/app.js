@@ -469,7 +469,8 @@ function fiche(n) {
         '<button type="button" class="gal-main" data-box aria-label="Agrandir la photo"><img id="gal-img" src="' + photo(h, 0, 'l') + '" alt="Photo 1 de la maison à ' + esc(h.label) + '" width="1400" height="933"></button>' +
         (h.nph > 1 ? '<button type="button" class="car-nav prev" data-galnav="-1" aria-label="Photo précédente">‹</button><button type="button" class="car-nav next" data-galnav="1" aria-label="Photo suivante">›</button>' : '') +
         '<span class="gal-count" id="gal-count">1 / ' + h.nph + '</span><span class="gal-zoom" aria-hidden="true">Agrandir</span>' +
-      '</div><div class="gal-thumbs" id="gal-thumbs">' + thumbs + '</div></div>' +
+      '</div><div class="gal-thumbs" id="gal-thumbs">' + thumbs + '</div>' +
+      '<div class="f-act2"><button type="button" class="btn ghost small" data-send="' + n + '">Préparer un e-mail</button><button type="button" class="btn ghost small" data-print="' + n + '">Imprimer</button><button type="button" class="btn ghost small" data-link="' + n + '">Copier le lien</button></div></div>' +
       '<aside class="fs">' +
         '<p class="f-meta">' + statutBadge(h) + '<span class="muted">Réf. ' + h.n + ' · mis à jour le ' + dateFr(h.maj) + '</span></p>' + annonceBloc(h) +
         '<h2 id="fiche-t">' + esc(h.label) + '</h2><p class="ctype">' + titre(h) + ' · ' + h.m2 + NBSP + 'm² · ' + h.ch + ' chambres</p>' +
@@ -480,7 +481,7 @@ function fiche(n) {
           '<a class="btn primary" href="' + esc(h.url) + '" target="_blank" rel="noopener">Voir l’annonce d’origine <span aria-hidden="true">↗</span></a>' +
           (ch ? '<a class="btn" href="' + esc(ch) + '">Proposer une visite</a>' : '') +
           '<button type="button" class="btn" data-addcmp="' + n + '" aria-pressed="' + sel + '">' + (sel ? '✓ Dans la comparaison' : 'Ajouter à la comparaison') + '</button>' +
-          '<div class="f-act2"><button type="button" class="btn ghost small" data-send="' + n + '">Préparer un e-mail</button><button type="button" class="btn ghost small" data-print="' + n + '">Imprimer</button><button type="button" class="btn ghost small" data-link="' + n + '">Copier le lien</button></div>' +
+          '<button type="button" class="btn primary" data-sug-go>Suggestions / Informations</button>' +
         '</div>' +
       '</aside>' +
       '<div class="fm">' +
@@ -507,7 +508,7 @@ const SUG_TYPES = [
 ];
 function suggestBloc(h) {
   const ok = !!(SUG_URL || CONTACT.email);
-  return '<section class="sug" id="suggerer"><details' + (S.openSug ? ' open' : '') + '><summary>Suggérer une modification ou transmettre une information</summary>' +
+  return '<section class="sug" id="suggerer"><details' + (S.openSug ? ' open' : '') + '><summary>Suggestions / Informations</summary>' +
     (ok ? '<form class="sug-form" data-sug="' + h.n + '" novalidate>' +
       '<p class="note">Cochez ce qui s’applique et précisez en quelques mots. Votre suggestion est transmise à l’administrateur, qui décide de ce qui est affiché.</p>' +
       '<label class="fld"><span>Votre nom (facultatif)</span><input type="text" name="nom" maxlength="60" autocomplete="name"></label>' +
@@ -651,6 +652,7 @@ document.addEventListener('click', (e) => {
   const has = (a) => t.hasAttribute(a), val = (a) => t.getAttribute(a);
   if (has('data-replace')) { e.preventDefault(); location.replace(val('href')); return; }
   if (has('data-close-go')) { e.preventDefault(); history.replaceState(null, '', '#questions'); pushed = false; route(); $('questions').scrollIntoView(); return; }
+  if (has('data-sug-go')) { const sg = $('suggerer'); if (sg) { sg.querySelector('details').open = true; sg.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); const f = sg.querySelector('input[name=nom]'); if (f) f.focus({ preventScroll: true }); } return; }
   if (has('data-sug-open')) { e.preventDefault(); S.openSug = true; go(val('href')); return; }
   if (t.tagName === 'A' && /^#bien-\d+$/.test(val('href') || '')) { e.preventDefault(); go(val('href')); return; }
   if (has('data-close')) { closeDialog(t.closest('dialog')); return; }
