@@ -70,7 +70,7 @@ Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, case
 
 **Activer le formulaire (une fois, 5 minutes, gratuit)**
 
-1. Créez une feuille Google Sheets vide, puis *Extensions*, *Apps Script*.
+1. Créez une feuille Google Sheets vide, puis *Extensions*, *Apps Script*. Si l'éditeur affiche « Impossible d'ouvrir le fichier » (plusieurs comptes Google connectés), ouvrez `script.google.com` dans une fenêtre de navigation privée avec le seul compte de la feuille, créez un *Nouveau projet* et renseignez `ID_FEUILLE` (identifiant de la feuille, entre `/d/` et `/edit` dans son adresse).
 2. Collez le contenu de `docs/suggestions-google-apps-script.gs`, remplacez la valeur de `CLE` par une longue phrase secrète, enregistrez.
 3. *Déployer*, *Nouveau déploiement*, type *Application Web* ; exécuter en tant que **moi**, accès **tout le monde** ; autorisez, puis copiez l'adresse qui finit par `/exec`.
 4. Dans `/admin/`, tout en bas (**Réglage des suggestions**) : collez l'adresse, saisissez la phrase secrète (elle reste dans le navigateur), puis **Publier**.
