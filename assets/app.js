@@ -65,13 +65,14 @@ function lireAnnonce(a, v) {
 const sorti = (h) => !!HORS_LIGNE[h.statut];
 let H = [];
 let CONTACT = { email: '', tel: '' };
+let SUG_URL = '';   /* adresse du formulaire qui reçoit les suggestions (réglée dans l'admin) */
 function applyEtat(etat, ann, ver) {
   const eb = (etat && etat.biens) || {};
   const ab = (ann && ann.biens) || {}, vb = (ver && ver.biens) || {};
   H = D.biens.filter((h) => !(eb[h.n] && eb[h.n].visible === false)).map((h) => {
     const e = eb[h.n] || {};
     const an = lireAnnonce(ab[h.n], vb[h.n]);
-    const price = an && an.prix ? an.prix : h.price;   /* prix lu dans l'annonce, sinon prix de la liste */
+    const price = e.prix > 0 ? e.prix : h.price;   /* prix de l'admin (posé par le robot ou à la main), sinon prix de la liste */
     return Object.assign({}, h, {
       price, ppm: Math.round(price / h.m2), an,
       statut: STATUTS[e.statut] ? e.statut : 'etude',
@@ -81,6 +82,7 @@ function applyEtat(etat, ann, ver) {
     });
   });
   H.slice().sort((a, b) => b.score - a.score).forEach((h, i) => { h.rank = i + 1; });
+  SUG_URL = etat && etat.suggestions && /^https:\/\/script\.google\.com\//.test(etat.suggestions.url || '') ? etat.suggestions.url : '';
   if (etat && etat.contact) CONTACT = { email: etat.contact.email || '', tel: etat.contact.tel || '' };
   S.cmp = S.cmp.filter((n) => byN(n));
 }
@@ -246,6 +248,7 @@ function card(h, idx) {
       annonceLine(h) + cardChips(h) +
       '<p class="cnotes">' + esc(h.notes) + '</p>' +
       '<div class="cact"><a class="btn primary small" href="#bien-' + h.n + '">Voir la fiche</a>' +
+      '<a class="btn ghost small" href="#bien-' + h.n + '" data-sug-open title="Suggérer une modification ou transmettre une information sur ce bien">Suggérer</a>' +
       '<label class="cmp"><input type="checkbox" data-cmp="' + h.n + '"' + (sel ? ' checked' : '') + '><span>Comparer</span></label></div>' +
     '</div></article>';
 }
@@ -487,9 +490,63 @@ function fiche(n) {
         '<section><h3>Nos critères sur ce bien</h3>' + chips(h, KEYS) + '</section>' +
         '<section><div class="sec-head"><h3>Questions à poser</h3><button type="button" class="btn small" data-copyq="' + n + '">Copier</button></div><ol class="qlist">' + h.q.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol>' +
         '<p class="note">Les <a href="#questions" data-close-go>questions communes à tous les biens</a> s’ajoutent à celles-ci.</p></section>' +
+        suggestBloc(h) +
       '</div>' +
     '</div>';
   show(dF);
+  if (S.openSug) { S.openSug = false; const sg = $('suggerer'); if (sg) sg.scrollIntoView({ block: 'start' }); }
+}
+/* Suggestions des agents : envoyées au formulaire, elles arrivent dans l'administration qui décide de ce qu'on applique. */
+const SUG_TYPES = [
+  ['info', 'Une information de la fiche est inexacte ou manquante'],
+  ['prix', 'Le prix ou les conditions ont changé'],
+  ['etat', 'L’état de l’annonce a changé (vendue, sous compromis, retirée…)'],
+  ['visite', 'Une visite a eu lieu ou peut être organisée'],
+  ['reponse', 'Réponse à l’une de nos questions'],
+  ['comm', 'Un commentaire à afficher sur la fiche']
+];
+function suggestBloc(h) {
+  const ok = !!(SUG_URL || CONTACT.email);
+  return '<section class="sug" id="suggerer"><details' + (S.openSug ? ' open' : '') + '><summary>Suggérer une modification ou transmettre une information</summary>' +
+    (ok ? '<form class="sug-form" data-sug="' + h.n + '" novalidate>' +
+      '<p class="note">Cochez ce qui s’applique et précisez en quelques mots. Votre suggestion est transmise à l’administrateur, qui décide de ce qui est affiché.</p>' +
+      '<label class="fld"><span>Votre nom (facultatif)</span><input type="text" name="nom" maxlength="60" autocomplete="name"></label>' +
+      '<fieldset class="sug-types"><legend>Ce que vous transmettez</legend>' + SUG_TYPES.map((t) => '<label class="optline"><input type="checkbox" name="type" value="' + t[0] + '"><span>' + t[1] + '</span></label>').join('') + '</fieldset>' +
+      '<div class="fld-row"><label class="fld"><span>Statut proposé</span><select name="statut"><option value="">Aucun changement</option>' + Object.keys(STATUTS).map((k) => '<option value="' + k + '">' + STATUTS[k] + '</option>').join('') + '</select></label>' +
+      '<label class="fld"><span>Nouveau prix, en €</span><input type="text" name="prix" inputmode="numeric" maxlength="9" placeholder="Ex. : 385000" autocomplete="off"></label></div>' +
+      '<label class="fld"><span>Détails</span><textarea name="texte" rows="4" maxlength="600" placeholder="Ex. : visite possible le 20 novembre, le vendeur accepte de baisser à 385 000 €."></textarea></label>' +
+      '<input type="text" name="piege" class="vh" tabindex="-1" autocomplete="off" aria-hidden="true">' +
+      '<button type="submit" class="btn primary">Envoyer la suggestion</button><p class="sug-msg" role="status" aria-live="polite"></p></form>'
+      : '<p class="note">L’envoi de suggestions n’est pas encore activé.</p>') +
+    '</details></section>';
+}
+function sendSuggestion(form) {
+  const f = form.elements, msg = form.querySelector('.sug-msg'), n = +form.getAttribute('data-sug'), h = byN(n);
+  const d = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: new Date().toISOString(),
+    bien: n, label: h ? h.label : '', nom: f.nom.value.trim().slice(0, 60),
+    types: Array.prototype.filter.call(form.querySelectorAll('[name=type]'), (x) => x.checked).map((x) => x.value),
+    statut: STATUTS[f.statut.value] ? f.statut.value : '', prix: parseInt(f.prix.value.replace(/\D/g, ''), 10) || 0,
+    texte: f.texte.value.trim().slice(0, 600), piege: f.piege.value
+  };
+  if (!d.types.length && !d.statut && !d.prix && !d.texte) { msg.textContent = 'Cochez au moins une case ou écrivez quelques mots.'; return; }
+  if (d.prix && (d.prix < 50000 || d.prix > 3000000)) { msg.textContent = 'Le prix indiqué semble incorrect.'; return; }
+  const fini = () => { form.reset(); msg.textContent = 'Merci, la suggestion est transmise.'; };
+  const btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+  if (SUG_URL) {
+    msg.textContent = 'Envoi…';
+    fetch(SUG_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(d) })
+      .then(fini).catch(() => { msg.textContent = 'L’envoi a échoué. Réessayez dans un instant.'; }).then(() => { btn.disabled = false; });
+    return;
+  }
+  /* sans formulaire configuré : e-mail préparé, avec une ligne lisible par l'administration */
+  const lib = d.types.map((k) => SUG_TYPES.filter((t) => t[0] === k)[0][1]);
+  const corps = 'Suggestion pour ' + d.label + ' (réf. ' + n + ')\n' + (d.nom ? 'De : ' + d.nom + '\n' : '') + lib.map((x) => '- ' + x).join('\n') +
+    (d.statut ? '\nStatut proposé : ' + STATUTS[d.statut] : '') + (d.prix ? '\nNouveau prix : ' + d.prix + ' €' : '') + (d.texte ? '\n\n' + d.texte : '') +
+    '\n\n--\nSUGGESTION-SUIVI ' + JSON.stringify({ id: d.id, date: d.date, bien: n, label: d.label, nom: d.nom, types: d.types, statut: d.statut, prix: d.prix, texte: d.texte });
+  btn.disabled = false;
+  msg.textContent = 'Votre messagerie s’ouvre : envoyez le message préparé.';
+  location.href = 'mailto:' + CONTACT.email + '?subject=' + encodeURIComponent('Suggestion : ' + d.label + ' (réf. ' + n + ')') + '&body=' + encodeURIComponent(corps);
 }
 function galSet(k) {
   if (!cur) return;
@@ -594,6 +651,7 @@ document.addEventListener('click', (e) => {
   const has = (a) => t.hasAttribute(a), val = (a) => t.getAttribute(a);
   if (has('data-replace')) { e.preventDefault(); location.replace(val('href')); return; }
   if (has('data-close-go')) { e.preventDefault(); history.replaceState(null, '', '#questions'); pushed = false; route(); $('questions').scrollIntoView(); return; }
+  if (has('data-sug-open')) { e.preventDefault(); S.openSug = true; go(val('href')); return; }
   if (t.tagName === 'A' && /^#bien-\d+$/.test(val('href') || '')) { e.preventDefault(); go(val('href')); return; }
   if (has('data-close')) { closeDialog(t.closest('dialog')); return; }
   if (has('data-boxclose')) { hide(dB); return; }
@@ -630,6 +688,7 @@ document.addEventListener('click', (e) => {
   if (t.id === 'f-close' || t.id === 'f-apply') { closeFilters(); if (t.id === 'f-apply') $('resultats').scrollIntoView(); return; }
 });
 scrim.addEventListener('click', closeFilters);
+document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-sug]'); if (f) { e.preventDefault(); sendSuggestion(f); } });
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.hasAttribute('data-cmp')) {

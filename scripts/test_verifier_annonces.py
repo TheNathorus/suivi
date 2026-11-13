@@ -195,6 +195,20 @@ class Suivi(unittest.TestCase):
         self.assertEqual((e['biens']['9']['statut'], e['biens']['9']['avant']), ('retiree', 'etude'))
         self.assertTrue(e['biens']['9']['visible'])
 
+    def test_prix_lu_dans_l_annonce(self):
+        base = {'1': 300000}
+        e, ch = v.synchroniser(etat0(**{'1': {}}), {'1': {'statut': 'disponible', 'prix': 300000}}, J1, base)
+        self.assertNotIn('prix', e['biens']['1'])
+        self.assertEqual(ch, [])
+        e, ch = v.synchroniser(e, {'1': {'statut': 'prix', 'prix': 285000}}, J2, base)
+        self.assertEqual((e['biens']['1']['prix'], e['biens']['1']['vu_prix']), (285000, 285000))
+        self.assertEqual(ch, [('1', f'prix {v.eur(300000)} → {v.eur(285000)}')])
+        e['biens']['1']['prix'] = 290000                       # l'administrateur corrige
+        e2, ch2 = v.synchroniser(e, {'1': {'statut': 'prix', 'prix': 285000}}, J3, base)
+        self.assertEqual((e2, ch2), (e, []))                  # même prix lu : rien n'est écrasé
+        e3, ch3 = v.synchroniser(e, {'1': {'statut': 'prix', 'prix': 270000}}, J3, base)
+        self.assertEqual(e3['biens']['1']['prix'], 270000)    # nouveau prix sur le site : le robot suit
+
     def test_message_avec_suivi(self):
         m = v.message_commit([(18, 'Redessan', 'plus disponible')], False, [], J2, 10, [('18', 'suivi « À étudier » → « Plus disponible »')])
         self.assertIn('Suivi réf. 18 : suivi « À étudier » → « Plus disponible »', m)

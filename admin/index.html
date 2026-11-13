@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://script.google.com https://script.googleusercontent.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <title>Suivi · Administration</title>
 <meta name="theme-color" content="#1f4f46">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
@@ -30,7 +30,7 @@
 <main class="wrap a-main">
   <section id="login" class="a-card" hidden>
     <h1>Administration</h1>
-    <p class="lead small">Affichez ou masquez un bien, mettez à jour son suivi et réglez le bouton de contact. Chaque enregistrement publie le site en une à deux minutes.</p>
+    <p class="lead small">Tout ce qui s’affiche sur le site se règle ici : affichage, suivi, prix et note de chaque bien, bouton de contact, suggestions des agents. Chaque enregistrement publie le site en une à deux minutes.</p>
     <form id="login-form" class="a-form">
       <label class="fld" for="token">Jeton d’accès GitHub
         <input type="password" id="token" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
@@ -66,6 +66,20 @@
         <input type="search" id="a-q" placeholder="Rechercher un bien" autocomplete="off">
       </div>
     </div>
+    <section class="a-card" id="a-sug" aria-labelledby="sug-t">
+      <div class="a-head"><h2 id="sug-t">Suggestions des agents</h2><button type="button" class="btn small" id="sug-refresh">Actualiser</button></div>
+      <p class="note" id="sug-state"></p>
+      <ul class="sg-list" id="sg-list"></ul>
+      <details class="fold" id="sug-paste">
+        <summary>Coller une suggestion reçue par e-mail</summary>
+        <div class="foldbody">
+          <p class="note">Quand le formulaire n’est pas activé, la suggestion arrive par e-mail avec une ligne « SUGGESTION-SUIVI … ». Collez ici le message entier.</p>
+          <textarea id="sug-text" rows="4" placeholder="Collez le message ici"></textarea>
+          <button type="button" class="btn small" id="sug-add">Ajouter à la liste</button>
+        </div>
+      </details>
+    </section>
+
     <ul class="a-list" id="a-list"></ul>
 
     <section class="a-card" aria-labelledby="contact-t">
@@ -77,6 +91,19 @@
         </label>
         <label class="fld" for="c-tel">Téléphone (si pas d’e-mail)
           <input type="tel" id="c-tel" autocomplete="off" placeholder="06 00 00 00 00">
+        </label>
+      </div>
+    </section>
+
+    <section class="a-card" aria-labelledby="sugset-t">
+      <h2 id="sugset-t">Réglage des suggestions</h2>
+      <p class="note">Le formulaire gratuit (Google) qui reçoit les suggestions envoyées depuis les fiches. Mode d’emploi : section « Suggestions des agents » du fichier README du dépôt. Sans adresse, le bouton d’envoi prépare un e-mail.</p>
+      <div class="a-two">
+        <label class="fld" for="s-url">Adresse du formulaire (publique)
+          <input type="url" id="s-url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+        </label>
+        <label class="fld" for="s-key">Mot de passe de lecture (reste dans ce navigateur)
+          <input type="password" id="s-key" autocomplete="off" spellcheck="false">
         </label>
       </div>
     </section>

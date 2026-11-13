@@ -366,12 +366,14 @@ def traiter(annonces, prec_annonces, prec_verif, observe, aujourdhui, pause=PAUS
     return res, verif, changements, alertes
 
 
-def synchroniser(etat, annonces, aujourdhui):
+def synchroniser(etat, annonces, aujourdhui, prix_base=None):
     """Reporte dans la base de l'administration (etat) ce que le robot vient d'observer.
 
     Pour chaque bien, `vu` garde la dernière observation qui a produit un statut, `auto` marque un statut posé
     par le robot et `avant` le statut qu'il a remplacé. Le robot n'agit que lorsque l'observation CHANGE :
     un statut mis à la main par l'administrateur n'est donc jamais écrasé le lendemain.
+    Même règle pour le prix : `vu_prix` garde le dernier prix lu, `prix` est celui affiché sur le site
+    (modifiable dans l'admin). `prix_base` : prix de la liste (assets/data.js), point de départ.
     Renvoie (nouvel etat, [(réf., texte)]). `etat` n'est pas modifié."""
     iso = aujourdhui.isoformat()
     etat = json.loads(json.dumps(etat))
@@ -383,6 +385,13 @@ def synchroniser(etat, annonces, aujourdhui):
             continue   # lecture bloquée : aucune conclusion, aucun changement de statut
         cible = STATUT_ADMIN.get(obs)
         bien = biens.setdefault(cle, {'visible': True, 'statut': 'etude', 'maj': iso, 'note': ''})
+        lu = ann.get('prix')
+        connu = bien.get('vu_prix') or (prix_base or {}).get(cle)
+        if isinstance(lu, int) and lu > 0 and connu and lu != connu:
+            bien['prix'] = lu
+            bien['vu_prix'] = lu
+            bien['maj'] = iso
+            changements.append((cle, f'prix {eur(connu)} → {eur(lu)}'))
         vu = bien.get('vu')
         avant_cible = STATUT_ADMIN.get(vu)
         if cible == avant_cible:
@@ -516,7 +525,8 @@ def main():
     if res != prec_annonces:
         ecrire(ANNONCES, {'biens': dict(sorted(res.items(), key=lambda kv: int(kv[0])))})
     etat = lire_json(ETAT, {})
-    etat, suivi = synchroniser(etat if isinstance(etat, dict) else {}, res, aujourdhui)
+    etat, suivi = synchroniser(etat if isinstance(etat, dict) else {}, res, aujourdhui,
+                               {str(n): prix for n, _, _, prix in annonces})
     for n, texte in suivi:
         print(f'Suivi réf. {n} : {texte}')
     if suivi:

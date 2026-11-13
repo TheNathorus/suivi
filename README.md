@@ -60,4 +60,19 @@ Règles de prudence :
 - **Mettre en pause** : onglet *Actions*, **Vérifier les annonces**, menu « … », *Disable workflow*.
 - **Lancer une vérification maintenant** : même workflow, *Run workflow*. Le champ facultatif « diagnostic » (ex. `18`) détaille dans le journal ce que le site renvoie pour cette réf., sans adresse.
 
+Le **prix** suit la même règle : le robot écrit dans la base le prix lu dans l'annonce quand il change (champ « Prix » de l'admin), et un prix saisi dans l'admin n'est jamais écrasé tant que l'annonce ne change pas.
+
 Tests : `python3 scripts/test_verifier_annonces.py` (sans réseau).
+
+## Suggestions des agents
+
+Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, cases à cocher, statut proposé, nouveau prix, texte). L'envoi arrive dans la page `/admin/`, section **Suggestions des agents** : pour chaque suggestion, des cases à cocher (passer le suivi à…, mettre le prix à…, mettre le texte dans la note) puis **Traiter** ou **Écarter**. Rien n'est publié tant que l'administrateur n'a pas cliqué sur **Publier** ; les suggestions traitées sont mémorisées dans `data/etat.json` (`suggestions.traitees`).
+
+**Activer le formulaire (une fois, 5 minutes, gratuit)**
+
+1. Créez une feuille Google Sheets vide, puis *Extensions*, *Apps Script*.
+2. Collez le contenu de `docs/suggestions-google-apps-script.gs`, remplacez la valeur de `CLE` par une longue phrase secrète, enregistrez.
+3. *Déployer*, *Nouveau déploiement*, type *Application Web* ; exécuter en tant que **moi**, accès **tout le monde** ; autorisez, puis copiez l'adresse qui finit par `/exec`.
+4. Dans `/admin/`, tout en bas (**Réglage des suggestions**) : collez l'adresse, saisissez la phrase secrète (elle reste dans le navigateur), puis **Publier**.
+
+Sans formulaire, le bouton d'envoi prépare un e-mail vers l'adresse de contact ; on le colle ensuite dans l'admin (« Coller une suggestion reçue par e-mail »).
