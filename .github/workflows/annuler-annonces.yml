@@ -1,7 +1,7 @@
 name: Annuler une mise à jour des annonces
 
-# Remet data/annonces.json dans l'état d'avant une mise à jour automatique.
-# Sans réponse au champ ci-dessous, annule la dernière mise à jour qui a changé un statut.
+# Remet le suivi (data/etat.json) dans l'état d'avant une mise à jour automatique, bien par bien.
+# Sans réponse au champ ci-dessous, annule la dernière mise à jour automatique qui a changé un suivi.
 # L'historique reste intact : l'annulation est un nouveau commit, jamais une réécriture.
 on:
   workflow_dispatch:
@@ -34,28 +34,18 @@ jobs:
           COMMIT: ${{ inputs.commit }}
         run: |
           set -eu
-          cible="$COMMIT"
-          if [ -z "$cible" ]; then
-            cible=$(git log -1 --format=%H -- data/annonces.json)
-          fi
-          if ! printf '%s' "$cible" | grep -Eq '^[0-9a-f]{7,40}$'; then
+          if [ -n "$COMMIT" ] && ! printf '%s' "$COMMIT" | grep -Eq '^[0-9a-f]{7,40}$'; then
             echo "::error::Numéro de commit invalide."; exit 1
           fi
-          cible=$(git rev-parse --verify "${cible}^{commit}")
-          titre=$(git log -1 --format=%s "$cible")
-          if git cat-file -e "${cible}^:data/annonces.json" 2>/dev/null; then
-            git show "${cible}^:data/annonces.json" > data/annonces.json
-          else
-            printf '{\n "biens": {}\n}\n' > data/annonces.json
-          fi
-          if git diff --quiet -- data/annonces.json; then
-            echo "Les annonces sont déjà dans l'état d'avant ce commit : rien à annuler."; exit 0
+          python3 scripts/annuler_annonces.py "$COMMIT"
+          if git diff --quiet -- data/etat.json; then
+            echo "Rien à annuler."; exit 0
           fi
           git config user.name "Suivi (mise à jour automatique)"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/annonces.json
-          git commit -m "Annulation de la mise à jour des annonces : ${titre}" \
-                     -m "Les statuts des annonces reviennent à ceux d'avant le commit ${cible}. La vérification de demain peut les changer de nouveau si le site affiche toujours la même chose : pour fixer un statut, utilisez le champ « Annonce » de la page /admin/."
+          git add data/etat.json
+          git commit -m "Annulation d'une mise à jour automatique du suivi" \
+                     -m "Les biens changés par le robot retrouvent leur suivi d'avant. Le robot ne remettra pas le même statut tant que l'annonce ne change pas. Pour corriger un bien ensuite : page /admin/, champ « Suivi »."
           git pull --rebase origin main
           git push origin HEAD:main
           gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Mise en ligne déjà en cours ou refusée : sans conséquence."

@@ -31,27 +31,33 @@ Les pages portent une balise `noindex`. Les photos appartiennent aux agences et 
 
 ## Mise à jour automatique des annonces
 
-Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce de `assets/data.js` et en déduit un statut :
+**Un seul système de statuts.** La page `/admin/` pilote le site public : tout ce qui change passe par `data/etat.json` (la base de l'administration) et le site public ne fait que le lire. Le robot du matin écrit donc dans cette même base, exactement comme l'administrateur.
 
-| Statut | Quand |
+Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce de `assets/data.js` et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
+
+| Statut de suivi posé par le robot | Quand |
 | --- | --- |
-| Disponible | l'annonce est en ligne, sans changement |
-| Prix modifié | le prix a changé (ancien et nouveau prix affichés pendant 14 jours) |
 | Sous compromis | l'annonceur l'écrit dans le titre ou le début de la description (« sous compromis », « sous offre »…) |
-| Vendue | l'annonceur l'écrit dans le titre ou le début de la description (« VENDU », « vendue ! »…), deux lectures concordantes |
 | Plus disponible | la page reste en ligne mais affiche « Cette annonce n'est plus disponible », sans raison : vendue, retirée ou en pause (deux lectures concordantes) |
+| Vendue | l'annonceur l'écrit dans le titre ou le début de la description (« VENDU »…), deux lectures concordantes |
 | Retirée | page supprimée ou renvoyée vers une liste (deux lectures concordantes) |
-| À vérifier | le site a bloqué la lecture 3 jours de suite : aucune conclusion |
 
-Les annonces vendues, retirées ou plus disponibles restent visibles, grisées et placées en fin de liste. Un blocage isolé ne change rien. Si près de la moitié des annonces disparaissent en même temps, le script suppose une panne du site et ne change rien.
+Les autres statuts (À étudier, Questions envoyées, Visite à prévoir, Visité, Écarté) sont ceux de l'administrateur : le robot ne les choisit jamais. Les biens Plus disponible, Vendue ou Retirée restent visibles, grisés et placés en fin de liste, et le filtre « Suivi » les propose comme les autres.
 
-Les résultats sont écrits dans `data/annonces.json` (statuts, prix, historique) et `data/verification.json` (date de la dernière lecture réussie). Chaque vérification est **un commit sur `main`** au message lisible, par exemple « Annonces 14 nov. : réf. 16 vendue ».
+Règles de prudence :
+
+- Le robot n'agit que lorsque ce qu'il lit **change**. Un statut choisi dans l'admin n'est donc jamais écrasé le lendemain.
+- Il note dans la base le statut qu'il remplace (`avant`) : si l'annonce revient en ligne et que personne n'a touché au statut, le bien retrouve son suivi d'avant.
+- Un blocage isolé du site ne change rien. Si près de la moitié des annonces disparaissent en même temps, le script suppose une panne du site et ne change rien.
+- Le prix modifié (14 jours) et la date de dernière vérification restent de simples informations affichées sous le statut.
+
+`data/annonces.json` (ce que le site a montré : prix, historique) et `data/verification.json` (date de la dernière lecture réussie) sont la mémoire du robot. Chaque vérification est **un commit sur `main`** au message lisible, par exemple « Annonces 14 nov. : réf. 16 plus disponible ».
 
 ### Revenir en arrière
 
-- **Corriger une annonce** : page `/admin/`, champ « Annonce » de la ligne du bien. « Forcer : … » l'emporte sur la lecture automatique, « Automatique » rend la main au script. C'est la solution durable.
-- **Annuler une mise à jour** : GitHub, onglet *Actions*, workflow **Annuler une mise à jour des annonces**, *Run workflow*. Sans autre précision, il remet les statuts dans l'état d'avant la dernière mise à jour qui en a changé un. On peut aussi donner le numéro d'un commit précis. L'annulation est un nouveau commit : rien n'est effacé.
+- **Corriger un bien** : page `/admin/`, champ « Suivi » de la ligne du bien, puis *Publier*. Le robot ne le changera plus tant que l'annonce ne change pas. C'est la solution durable.
+- **Annuler une mise à jour** : GitHub, onglet *Actions*, workflow **Annuler une mise à jour des annonces**, *Run workflow*. Sans autre précision, il remet le suivi des biens changés par la dernière mise à jour automatique, sauf ceux que l'administrateur a modifiés depuis. On peut aussi donner le numéro d'un commit précis. L'annulation est un nouveau commit : rien n'est effacé.
 - **Mettre en pause** : onglet *Actions*, **Vérifier les annonces**, menu « … », *Disable workflow*.
 - **Lancer une vérification maintenant** : même workflow, *Run workflow*. Le champ facultatif « diagnostic » (ex. `18`) détaille dans le journal ce que le site renvoie pour cette réf., sans adresse.
 
-Tests du script : `python3 scripts/test_verifier_annonces.py` (sans réseau).
+Tests : `python3 scripts/test_verifier_annonces.py` (sans réseau).

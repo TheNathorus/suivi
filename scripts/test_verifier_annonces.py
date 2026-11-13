@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verifier_annonces as v  # noqa: E402
+import annuler_annonces as an  # noqa: E402
 
 J1, J2, J3 = date(2026, 11, 14), date(2026, 11, 15), date(2026, 12, 5)
 OK = lambda prix=300000, drapeau=None: ('ok', {'prix': prix, 'drapeau': drapeau})  # noqa: E731
@@ -120,6 +121,106 @@ class Etat(unittest.TestCase):
         m = v.message_commit([(4, 'Poulx', 'vendue')], False, [], J2, 10)
         self.assertTrue(m.startswith('Annonces 15 nov. : réf. 4 vendue\n'))
         self.assertIn('aucun changement', v.message_commit([], False, [], J2, 10).splitlines()[0])
+
+
+def etat0(**biens):
+    base = {'visible': True, 'statut': 'etude', 'maj': '2026-11-10', 'note': ''}
+    return {'maj': '2026-11-10', 'contact': {'email': 'a@b.c', 'tel': ''},
+            'biens': {k: dict(base, **b) for k, b in biens.items()}}
+
+
+def ann(statut):
+    return {'statut': statut}
+
+
+class Suivi(unittest.TestCase):
+    """Le robot écrit dans la base de l'administration ; l'administrateur garde le dernier mot."""
+
+    def test_plus_disponible_puis_retour(self):
+        e, ch = v.synchroniser(etat0(**{'18': {'statut': 'visite'}}), {'18': ann('indisponible')}, J1)
+        b = e['biens']['18']
+        self.assertEqual((b['statut'], b['avant'], b['auto'], b['vu'], b['maj']), ('plusdispo', 'visite', True, 'indisponible', '2026-11-14'))
+        self.assertEqual(e['maj'], '2026-11-14')
+        self.assertEqual([c[0] for c in ch], ['18'])
+        e2, ch2 = v.synchroniser(e, {'18': ann('indisponible')}, J2)   # rien de nouveau : rien à écrire
+        self.assertEqual((e2, ch2), (e, []))
+        e3, ch3 = v.synchroniser(e, {'18': ann('disponible')}, J3)     # remise en ligne : le suivi d'avant revient
+        b = e3['biens']['18']
+        self.assertEqual(b['statut'], 'visite')
+        self.assertFalse({'auto', 'avant', 'vu'} & set(b))
+        self.assertEqual(len(ch3), 1)
+
+    def test_disponible_ne_change_rien(self):
+        e, ch = v.synchroniser(etat0(**{'1': {'statut': 'questions'}}), {'1': ann('disponible'), '2': ann('prix')}, J1)
+        self.assertEqual(ch, [])
+        self.assertEqual(e['biens']['1']['statut'], 'questions')
+        self.assertEqual(e['maj'], '2026-11-10')
+
+    def test_a_verifier_ne_change_rien(self):
+        e0 = etat0(**{'3': {'statut': 'plusdispo', 'avant': 'etude', 'auto': True, 'vu': 'indisponible'}})
+        e, ch = v.synchroniser(e0, {'3': ann('verifier')}, J2)
+        self.assertEqual((e, ch), (e0, []))
+
+    def test_le_choix_de_l_admin_n_est_pas_ecrase(self):
+        e, _ = v.synchroniser(etat0(**{'5': {}}), {'5': ann('indisponible')}, J1)
+        e['biens']['5'].update(statut='vendue')            # l'administrateur corrige (auto et avant effacés par l'admin)
+        e['biens']['5'].pop('auto'); e['biens']['5'].pop('avant')
+        e2, ch2 = v.synchroniser(e, {'5': ann('indisponible')}, J2)
+        self.assertEqual((e2, ch2), (e, []))
+        e3, ch3 = v.synchroniser(e, {'5': ann('disponible')}, J3)   # remise en ligne : on ne touche pas au choix de l'admin
+        self.assertEqual(e3['biens']['5']['statut'], 'vendue')
+        self.assertEqual(ch3, [])
+        self.assertNotIn('vu', e3['biens']['5'])
+
+    def test_statut_pose_a_la_main_avant_l_annonce(self):
+        e, ch = v.synchroniser(etat0(**{'6': {'statut': 'vendue'}}), {'6': ann('vendue')}, J1)
+        self.assertEqual(ch, [])
+        self.assertNotIn('auto', e['biens']['6'])
+        self.assertEqual(e['biens']['6']['vu'], 'vendue')
+
+    def test_plus_disponible_puis_vendue_garde_le_premier_avant(self):
+        e, _ = v.synchroniser(etat0(**{'7': {'statut': 'visite'}}), {'7': ann('indisponible')}, J1)
+        e, ch = v.synchroniser(e, {'7': ann('vendue')}, J2)
+        b = e['biens']['7']
+        self.assertEqual((b['statut'], b['avant'], b['vu']), ('vendue', 'visite', 'vendue'))
+        e, _ = v.synchroniser(e, {'7': ann('disponible')}, J3)
+        self.assertEqual(e['biens']['7']['statut'], 'visite')
+
+    def test_compromis(self):
+        e, ch = v.synchroniser(etat0(**{'8': {}}), {'8': ann('compromis')}, J1)
+        self.assertEqual(e['biens']['8']['statut'], 'compromis')
+
+    def test_bien_absent_de_la_base(self):
+        e, ch = v.synchroniser({'maj': '2026-11-10', 'biens': {}}, {'9': ann('retiree')}, J1)
+        self.assertEqual((e['biens']['9']['statut'], e['biens']['9']['avant']), ('retiree', 'etude'))
+        self.assertTrue(e['biens']['9']['visible'])
+
+    def test_message_avec_suivi(self):
+        m = v.message_commit([(18, 'Redessan', 'plus disponible')], False, [], J2, 10, [('18', 'suivi « À étudier » → « Plus disponible »')])
+        self.assertIn('Suivi réf. 18 : suivi « À étudier » → « Plus disponible »', m)
+
+
+class Annulation(unittest.TestCase):
+    def test_annuler_remet_le_suivi_et_empeche_la_reprise(self):
+        avant = etat0(**{'1': {}, '2': {'statut': 'visite'}})
+        apres, _ = v.synchroniser(avant, {'1': ann('indisponible'), '2': ann('vendue')}, J1)
+        nouveau, remis, laisses = an.annuler(avant, apres, apres)
+        self.assertEqual((remis, laisses), (['1', '2'], []))
+        self.assertEqual((nouveau['biens']['1']['statut'], nouveau['biens']['2']['statut']), ('etude', 'visite'))
+        self.assertEqual(nouveau['biens']['1']['vu'], 'indisponible')
+        self.assertNotIn('auto', nouveau['biens']['1'])
+        e, ch = v.synchroniser(nouveau, {'1': ann('indisponible'), '2': ann('vendue')}, J2)   # le lendemain
+        self.assertEqual(ch, [])
+        self.assertEqual(e['biens']['1']['statut'], 'etude')
+
+    def test_bien_modifie_depuis_est_laisse(self):
+        avant = etat0(**{'1': {}, '2': {}})
+        apres, _ = v.synchroniser(avant, {'1': ann('indisponible'), '2': ann('indisponible')}, J1)
+        actuel = json.loads(json.dumps(apres))
+        actuel['biens']['2'].update(statut='ecarte', maj='2026-11-16')
+        nouveau, remis, laisses = an.annuler(avant, apres, actuel)
+        self.assertEqual((remis, laisses), (['1'], ['2']))
+        self.assertEqual(nouveau['biens']['2']['statut'], 'ecarte')
 
 
 class Lecture(unittest.TestCase):

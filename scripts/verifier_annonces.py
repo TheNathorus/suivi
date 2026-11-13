@@ -2,8 +2,11 @@
 """Vérifie chaque jour si les annonces du comparateur sont toujours en ligne.
 
 Lit la liste des annonces dans assets/data.js, interroge Bien'ici, puis écrit :
-  - data/annonces.json     : statut de chaque annonce (ne change que s'il y a du nouveau) ;
-  - data/verification.json : date de la dernière vérification réussie de chaque annonce.
+  - data/annonces.json     : ce que le site a montré de chaque annonce (mémoire du robot : prix, historique) ;
+  - data/verification.json : date de la dernière vérification réussie de chaque annonce ;
+  - data/etat.json         : la base de l'administration. C'est là que le robot change le statut d'un bien
+                             (Sous compromis, Plus disponible, Vendue, Retirée), comme le ferait l'administrateur.
+                             La page publique ne fait que lire ce fichier.
 Le message du commit est écrit dans le fichier donné par la variable MESSAGE_FILE.
 
 Règles de prudence : une annonce n'est déclarée vendue ou retirée qu'après deux lectures
@@ -29,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_JS = ROOT / 'assets' / 'data.js'
 ANNONCES = ROOT / 'data' / 'annonces.json'
 VERIF = ROOT / 'data' / 'verification.json'
+ETAT = ROOT / 'data' / 'etat.json'
 
 UA = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/124.0 Safari/537.36')
@@ -43,6 +47,13 @@ PAUSE_ENTRE = 3.0    # secondes entre deux annonces
 PAUSE_CONFIRM = 20.0  # secondes avant la seconde lecture de confirmation
 
 GONE, BLOCKED = 'gone', 'blocked'
+
+# Ce que le robot observe -> statut de suivi de l'administration. Les autres observations
+# (disponible, prix modifié, à vérifier) ne changent aucun statut.
+STATUT_ADMIN = {'compromis': 'compromis', 'indisponible': 'plusdispo', 'vendue': 'vendue', 'retiree': 'retiree'}
+LIBELLE_ADMIN = {'etude': 'À étudier', 'questions': 'Questions envoyées', 'visite': 'Visite à prévoir',
+                 'vu': 'Visité', 'compromis': 'Sous compromis', 'plusdispo': 'Plus disponible',
+                 'vendue': 'Vendue', 'retiree': 'Retirée', 'ecarte': 'Écarté'}
 
 
 # ---------------------------------------------------------------- réseau
@@ -355,6 +366,50 @@ def traiter(annonces, prec_annonces, prec_verif, observe, aujourdhui, pause=PAUS
     return res, verif, changements, alertes
 
 
+def synchroniser(etat, annonces, aujourdhui):
+    """Reporte dans la base de l'administration (etat) ce que le robot vient d'observer.
+
+    Pour chaque bien, `vu` garde la dernière observation qui a produit un statut, `auto` marque un statut posé
+    par le robot et `avant` le statut qu'il a remplacé. Le robot n'agit que lorsque l'observation CHANGE :
+    un statut mis à la main par l'administrateur n'est donc jamais écrasé le lendemain.
+    Renvoie (nouvel etat, [(réf., texte)]). `etat` n'est pas modifié."""
+    iso = aujourdhui.isoformat()
+    etat = json.loads(json.dumps(etat))
+    biens = etat.setdefault('biens', {})
+    changements = []
+    for cle, ann in annonces.items():
+        obs = ann.get('statut')
+        if obs == 'verifier':
+            continue   # lecture bloquée : aucune conclusion, aucun changement de statut
+        cible = STATUT_ADMIN.get(obs)
+        bien = biens.setdefault(cle, {'visible': True, 'statut': 'etude', 'maj': iso, 'note': ''})
+        vu = bien.get('vu')
+        avant_cible = STATUT_ADMIN.get(vu)
+        if cible == avant_cible:
+            continue
+        courant = bien.get('statut', 'etude')
+        if cible:
+            if courant != cible:
+                if not bien.get('auto'):
+                    bien['avant'] = courant
+                bien['statut'] = cible
+                bien['auto'] = True
+                bien['maj'] = iso
+                changements.append((cle, f'suivi « {LIBELLE_ADMIN.get(courant, courant)} » → « {LIBELLE_ADMIN[cible]} »'))
+            bien['vu'] = obs
+        else:   # l'annonce est de nouveau en ligne
+            if bien.get('auto') and courant == avant_cible:
+                retour = bien.get('avant') if bien.get('avant') in LIBELLE_ADMIN else 'etude'
+                bien['statut'] = retour
+                bien['maj'] = iso
+                changements.append((cle, f'de nouveau en ligne, suivi « {LIBELLE_ADMIN[courant]} » → « {LIBELLE_ADMIN[retour]} »'))
+            for k in ('auto', 'avant', 'vu'):
+                bien.pop(k, None)
+    if changements:
+        etat['maj'] = iso
+    return etat, changements
+
+
 _SENSIBLE = re.compile(r'(?i)(address|street|adresse|lat|lon|position|blur|postal|city|district|zip|insee|geo|photo|image|url|link|phone|mail|contact|agency|agent|user|name|description|title|slug)')
 
 
@@ -417,7 +472,7 @@ def ecrire(chemin, obj):
     chemin.write_text(json.dumps(obj, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
 
 
-def message_commit(changements, premiere, alertes, aujourdhui, total):
+def message_commit(changements, premiere, alertes, aujourdhui, total, suivi=()):
     jour = fr_date(aujourdhui)
     if premiere:
         titre = f'Annonces {jour} : première vérification ({total} annonces)'
@@ -429,10 +484,11 @@ def message_commit(changements, premiere, alertes, aujourdhui, total):
     else:
         titre = f'Vérification des annonces du {jour} : aucun changement'
     corps = [f'- {label} (réf. {n}) : {t}' for n, label, t in changements]
+    corps += [f'Suivi réf. {n} : {t}' for n, t in suivi]
     corps += [f'ATTENTION : {a}' for a in alertes]
     corps.append('')
-    corps.append('Pour annuler : GitHub, onglet Actions, « Annuler une mise à jour des annonces ». '
-                 'Pour corriger une annonce : page /admin/, champ « Annonce ».')
+    corps.append('Pour corriger un bien : page /admin/, champ « Suivi » (le robot ne le changera plus tant que '
+                 "l'annonce ne change pas). Pour tout annuler : GitHub, onglet Actions, « Annuler une mise à jour des annonces ».")
     return titre + '\n\n' + '\n'.join(corps) + '\n'
 
 
@@ -459,13 +515,19 @@ def main():
 
     if res != prec_annonces:
         ecrire(ANNONCES, {'biens': dict(sorted(res.items(), key=lambda kv: int(kv[0])))})
+    etat = lire_json(ETAT, {})
+    etat, suivi = synchroniser(etat if isinstance(etat, dict) else {}, res, aujourdhui)
+    for n, texte in suivi:
+        print(f'Suivi réf. {n} : {texte}')
+    if suivi:
+        ecrire(ETAT, etat)
     ecrire(VERIF, {'date': aujourdhui.isoformat(),
                    'biens': dict(sorted(verif.items(), key=lambda kv: int(kv[0])))})
 
     chemin = os.environ.get('MESSAGE_FILE')
     if chemin:
         Path(chemin).write_text(message_commit(changements, not prec_annonces and bool(res), alertes,
-                                               aujourdhui, len(annonces)), encoding='utf-8')
+                                               aujourdhui, len(annonces), suivi), encoding='utf-8')
     return 0
 
 
