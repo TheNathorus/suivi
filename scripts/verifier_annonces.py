@@ -302,6 +302,51 @@ def traiter(annonces, prec_annonces, prec_verif, observe, aujourdhui, pause=PAUS
     return res, verif, changements, alertes
 
 
+_SENSIBLE = re.compile(r'(?i)(address|street|adresse|lat|lon|position|blur|postal|city|district|zip|insee|geo|photo|image|url|link|phone|mail|contact|agency|agent|user|name|description|title|slug)')
+
+
+def diagnostiquer(refs, annonces):
+    """Affiche dans le journal ce que le site renvoie pour certaines annonces (aucune adresse ni contact)."""
+    for n, label, url, prix in annonces:
+        if str(n) not in refs:
+            continue
+        print(f'::group::Diagnostic réf. {n} ({label})')
+        code, ent, corps = http_get('https://www.bienici.com/realEstateAd.json?id=' +
+                                    urllib.parse.quote(ad_id(url)), 'application/json')
+        print(f'API : code {code}, {len(corps)} caractères, type {ent.get("content-type", "?")}')
+        try:
+            j = json.loads(corps)
+        except ValueError:
+            j = None
+        if isinstance(j, dict):
+            print('Clés de premier niveau : ' + ', '.join(sorted(j)))
+            for k in sorted(j):
+                v = j[k]
+                if _SENSIBLE.search(k) or isinstance(v, (dict, list)):
+                    continue
+                if isinstance(v, str) and len(v) > 60:
+                    continue
+                print(f'  {k} = {v!r}')
+            for k in sorted(j):
+                if isinstance(j[k], dict) and not _SENSIBLE.search(k):
+                    print(f'  {k} = ' + ', '.join(f'{kk}={vv!r}' for kk, vv in j[k].items()
+                                               if not isinstance(vv, (dict, list)) and not _SENSIBLE.search(kk)
+                                               and not (isinstance(vv, str) and len(vv) > 60)))
+        else:
+            print('Début de la réponse : ' + corps[:200].replace('\n', ' '))
+        code, ent, corps = http_get(url, 'text/html')
+        print(f'Page : code {code}, {len(corps)} caractères, redirection : {ent.get("location", "aucune")}')
+        for m in re.finditer(r'(?is)<(title|h1)[^>]*>(.*?)</\1>', corps):
+            print(f'  <{m.group(1)}> {re.sub(r"<[^>]+>", "", m.group(2))[:120]!r}')
+        vus = 0
+        for m in re.finditer(r"(?i)(vendu|plus disponible|compromis|retir|sold|indisponible|unavailable)", corps):
+            print('  … ' + re.sub(r'\s+', ' ', corps[max(0, m.start() - 40):m.end() + 40]) + ' …')
+            vus += 1
+            if vus >= 6:
+                break
+        print('::endgroup::')
+
+
 def lire_annonces():
     brut = DATA_JS.read_text(encoding='utf-8')
     d = json.loads(brut[brut.index('=') + 1:].strip().rstrip(';'))
@@ -344,6 +389,9 @@ def main():
     prec = lire_json(ANNONCES, {})
     prec_annonces = prec.get('biens', {}) if isinstance(prec, dict) else {}
     prec_verif = (lire_json(VERIF, {}) or {}).get('biens', {})
+    refs = {x for x in re.split(r'[,\s]+', os.environ.get('DIAGNOSTIC', '')) if x.isdigit()}
+    if refs:
+        diagnostiquer(refs, annonces)
     res, verif, changements, alertes = traiter(annonces, prec_annonces, prec_verif, observer, aujourdhui)
 
     for a in alertes:
