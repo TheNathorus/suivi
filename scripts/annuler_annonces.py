@@ -5,7 +5,7 @@ Usage : annuler_annonces.py [commit]
 Sans commit, prend la dernière mise à jour automatique qui a touché data/etat.json.
 
 Pour chaque bien que ce commit a changé, le suivi retrouve sa valeur d'avant, à une condition : l'administrateur
-ne l'a pas modifié depuis (sinon le bien est laissé tel quel et signalé). Le robot garde en mémoire ce qu'il a
+ne l'a pas modifié depuis (statut et prix ; sinon le bien est laissé tel quel et signalé). Le robot garde en mémoire ce qu'il a
 observé : il ne remettra donc pas le même statut le lendemain, tant que l'annonce ne change pas.
 L'annulation est un nouveau commit, jamais une réécriture de l'historique.
 """
@@ -35,10 +35,11 @@ def annuler(avant, apres, actuel):
             laisses.append(cle)
             continue
         entree = dict(b_avant or DEFAUT)
-        for k in ('auto', 'avant', 'vu'):
+        for k in ('auto', 'avant', 'vu', 'vu_prix'):
             entree.pop(k, None)
-        if b_apres and b_apres.get('vu'):
-            entree['vu'] = b_apres['vu']   # le robot ne refera pas le même changement demain
+        for k in ('vu', 'vu_prix'):
+            if b_apres and b_apres.get(k):
+                entree[k] = b_apres[k]   # le robot ne refera pas le même changement demain
         biens[cle] = entree
         remis.append(cle)
     return nouveau, remis, laisses

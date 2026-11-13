@@ -390,3 +390,14 @@ dialog::backdrop{background:rgba(10,20,16,.6)}
   .p-facts td{white-space:nowrap}.p-facts td[colspan]{white-space:normal}
   .sheet footer{margin-top:8px;font-size:8pt;color:#444}
 }
+/* suggestions des agents (fiche d'un bien) */
+.sug details{border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface)}
+.sug summary{cursor:pointer;padding:12px 14px;font-weight:600;min-height:44px;display:flex;align-items:center}
+.sug-form{display:grid;gap:14px;padding:0 14px 16px}
+.sug-form .note{margin:0}
+.sug-form fieldset{border:0;padding:0;display:grid;gap:2px}
+.sug-form legend{font-size:.875rem;font-weight:600;margin-bottom:4px}
+.sug-form textarea,.sug-form input[type=text],.sug-form select{font:inherit;font-weight:400;color:var(--fg);background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-s);padding:10px 12px;min-height:44px;width:100%}
+.sug-form button{justify-self:start}
+.sug-msg{font-size:.9rem;color:var(--muted);margin:0}
+.sug-msg:empty{display:none}

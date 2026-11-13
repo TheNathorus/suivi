@@ -20,7 +20,7 @@
 .a-id a{font-size:.85rem}
 .a-row .fld{font-weight:500;font-size:.8rem;color:var(--muted)}
 .a-row .fld select,.a-row .fld input{color:var(--fg)}
-.switch,.a-statut,.a-note{grid-column:1/-1}
+.switch,.a-statut,.a-prix,.a-note{grid-column:1/-1}
 .switch{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;font-weight:600;justify-self:start}
 .switch input{position:absolute;opacity:0;width:52px;height:30px;margin:0;cursor:pointer}
 .sw{width:52px;height:30px;border-radius:999px;background:var(--line2);position:relative;transition:background .15s;flex:none}
@@ -34,8 +34,22 @@
 .a-two{display:grid;gap:12px}
 .a-save p{font-weight:600;margin-right:auto}
 @media (min-width:760px){
-  .a-row{grid-template-columns:96px minmax(170px,1.1fr) 130px 220px minmax(180px,1.4fr)}
-  .switch,.a-statut,.a-note{grid-column:auto}
+  .a-row{grid-template-columns:96px minmax(170px,1.1fr) 130px 220px 120px minmax(180px,1.4fr)}
+  .switch,.a-statut,.a-prix,.a-note{grid-column:auto}
   .a-two{grid-template-columns:1fr 1fr}
 }
 @media (max-width:520px){.admin .top-in{gap:8px}.admin .top-in .btn.ghost{display:none}.admin .top-in .btn{padding:0 12px}}
+
+/* suggestions des agents */
+.a-card textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-s);padding:10px 12px;width:100%}
+#a-sug .a-head{align-items:center}
+.sg-list{display:grid;gap:12px}
+.sg{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r-s);background:var(--bg)}
+.sg h3{font-family:var(--fh);font-size:1.1rem}
+.sg-meta{font-size:.85rem;color:var(--muted)}
+.sg-txt{white-space:pre-wrap;padding:8px 10px;background:var(--surface);border-radius:8px;font-size:.95rem}
+.sg-types{display:flex;flex-wrap:wrap;gap:6px;list-style:none}
+.sg-types li{font-size:.8rem;padding:2px 10px;border-radius:999px;background:var(--accent-soft)}
+.sg label.optline{min-height:36px}
+.sg .sg-note{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r-s);background:var(--surface);color:var(--fg)}
+.sg-act{display:flex;flex-wrap:wrap;gap:8px}
