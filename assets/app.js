@@ -40,6 +40,7 @@ const ANNONCES = {
   compromis: 'Sous compromis',
   vendue: 'Vendue',
   retiree: 'Retirée',
+  indisponible: 'Plus disponible',
   verifier: 'À vérifier'
 };
 const MOIS_C = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -59,7 +60,7 @@ function lireAnnonce(h, a, v, force) {
     verifie: (v && v.ok) || '', hist: (x.hist || []).slice().reverse()
   };
 }
-const sorti = (h) => h.an && (h.an.statut === 'vendue' || h.an.statut === 'retiree');
+const sorti = (h) => h.an && (h.an.statut === 'vendue' || h.an.statut === 'retiree' || h.an.statut === 'indisponible');
 let H = [];
 let CONTACT = { email: '', tel: '' };
 function applyEtat(etat, ann, ver) {
@@ -129,7 +130,7 @@ function annonceDetail(h) {
   const a = h.an; if (!a) return '';
   const t = [];
   if (a.statut === 'prix' && a.ancien && a.prix) t.push('avant ' + eur(a.ancien));
-  if (a.statut === 'vendue' || a.statut === 'retiree' || a.statut === 'compromis') t.push('depuis le ' + dateC(a.depuis));
+  if (a.statut === 'vendue' || a.statut === 'retiree' || a.statut === 'indisponible' || a.statut === 'compromis') t.push('depuis le ' + dateC(a.depuis));
   if (a.statut === 'verifier') t.push('lecture bloquée, aucune conclusion');
   if (a.force) t.push('indiqué à la main');
   else if (a.verifie) t.push('vérifiée le ' + dateC(a.verifie));
@@ -142,6 +143,7 @@ function annonceBloc(h) {
   const ev = h.an.hist.slice(0, 6).map((e) => '<li><b>' + dateC(e.d) + '</b> ' + esc(ANNONCES[e.s] || '') + (e.a && e.p ? ' (' + eur(e.a) + ' → ' + eur(e.p) + ')' : e.p && e.s !== 'verifier' ? ' · ' + eur(e.p) : '') + '</li>').join('');
   return '<div class="f-annonce a-' + h.an.statut + '">' + annonceLine(h) +
     (h.an.statut === 'vendue' || h.an.statut === 'retiree' ? '<p class="note">Cette annonce n’est plus en ligne : le bien reste affiché pour garder l’historique.</p>' : '') +
+    (h.an.statut === 'indisponible' ? '<p class="note">Le site de l’annonce indique qu’elle n’est plus disponible, sans en donner la raison : vendue, retirée ou simplement en pause. Le bien reste affiché pour garder l’historique.</p>' : '') +
     (h.an.statut === 'verifier' ? '<p class="note">Le site de l’annonce bloque la lecture automatique. Ouvrez l’annonce d’origine pour vérifier.</p>' : '') +
     (ev ? '<details class="f-hist"><summary>Historique de l’annonce</summary><ul>' + ev + '</ul></details>' : '') + '</div>';
 }

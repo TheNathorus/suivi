@@ -7,6 +7,11 @@ on:
     - cron: '0 5 * * *'   # 7 h en heure d'été
     - cron: '0 6 * * *'   # 7 h en heure d'hiver
   workflow_dispatch:       # bouton « Run workflow » pour lancer une vérification à la main
+    inputs:
+      diagnostic:
+        description: "Numéros de réf. à détailler dans le journal (facultatif, ex. 18). Sert à comprendre un statut inattendu."
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -39,6 +44,7 @@ jobs:
         if: steps.heure.outputs.go == 'oui'
         env:
           MESSAGE_FILE: ${{ runner.temp }}/message.txt
+          DIAGNOSTIC: ${{ inputs.diagnostic }}
         run: python3 scripts/verifier_annonces.py
 
       - name: Publier la mise à jour

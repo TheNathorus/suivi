@@ -33,7 +33,8 @@ VERIF = ROOT / 'data' / 'verification.json'
 UA = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/124.0 Safari/537.36')
 LIBELLES = {'disponible': 'Disponible', 'prix': 'Prix modifié', 'compromis': 'Sous compromis',
-            'vendue': 'Vendue', 'retiree': 'Retirée', 'verifier': 'À vérifier'}
+            'vendue': 'Vendue', 'retiree': 'Retirée', 'indisponible': 'Plus disponible',
+            'verifier': 'À vérifier'}
 PRIX_DUREE = 14      # jours pendant lesquels « Prix modifié » reste affiché
 ECHECS_MAX = 3       # jours de blocage avant « À vérifier »
 HIST_MAX = 15        # évènements gardés par annonce
@@ -122,12 +123,31 @@ def _prix(valeur):
     return None
 
 
+_TXT_COMPROMIS_ANNONCEUR = re.compile(
+    r"(?i)(sous[\s-]+compromis|sous[\s-]+offre|sous[\s-]+promesse|compromis\s+sign[eé]|offre\s+accept[eé]e)")
+_NON_VENTE = r"(?!\s+(avec|meubl|équip|en\s+l|sans|au\s+prix|par\s+))"
+_TXT_VENDU_ANNONCEUR = re.compile(
+    r"(\bVEND(U|UE)\b|^\W*(vendu|vendue)\b" + _NON_VENTE +
+    r"|(?i:\b(bien|maison|annonce)\s+(est\s+|désormais\s+|déjà\s+)?(vendu|vendue)\b" + _NON_VENTE + "))")
+
+
+def drapeau_texte(titre, description):
+    """Mentions écrites par l'annonceur dans le titre ou au début de la description.
+    Mots précis seulement : « vendu avec ses meubles » ne compte pas."""
+    texte = ((titre or '') + ' \n ' + (description or '')[:400])
+    if _TXT_VENDU_ANNONCEUR.search(texte):
+        return 'vendue'
+    if _TXT_COMPROMIS_ANNONCEUR.search(texte):
+        return 'compromis'
+    return None
+
+
 def lire_api(url):
     """Observation via l'API JSON publique du site. None si elle ne permet pas de conclure."""
     code, _, corps = http_get('https://www.bienici.com/realEstateAd.json?id=' +
                               urllib.parse.quote(ad_id(url)), 'application/json')
     if code in (404, 410):
-        return GONE, {}
+        return GONE, {'statut': 'retiree'}
     if code != 200:
         return None
     try:
@@ -138,7 +158,11 @@ def lire_api(url):
         return None
     drapeau = _drapeau_json({k: v for k, v in j.items() if k not in ('description', 'title')})
     if drapeau == 'retiree':
-        return GONE, {}
+        return GONE, {'statut': 'indisponible'}
+    if drapeau is None:
+        titre = j.get('title') if isinstance(j.get('title'), str) else ''
+        desc = j.get('description') if isinstance(j.get('description'), str) else ''
+        drapeau = drapeau_texte(titre, desc)
     return 'ok', {'prix': _prix(j.get('price')), 'drapeau': drapeau}
 
 
@@ -159,16 +183,18 @@ def lire_page(url):
             if identifiant in loc:
                 cible = loc
                 continue
-            return GONE, {}   # renvoyée vers une liste ou la page d'accueil
+            return GONE, {'statut': 'retiree'}   # renvoyée vers une liste ou la page d'accueil
         break
     if code in (404, 410):
-        return GONE, {}
+        return GONE, {'statut': 'retiree'}
     if code != 200 or _BLOQUE.search(corps[:6000]):
         return None
     if _PLUS_DISPO.search(corps):
-        return GONE, {}
+        return GONE, {'statut': 'indisponible'}   # le site ne dit pas pourquoi
     titres = ' '.join(m.group(0) for m in _BALISES_TITRE.finditer(corps))
-    drapeau = 'vendue' if _TXT_VENDU.search(titres) else 'compromis' if _TXT_COMPROMIS.search(titres) else None
+    meta = re.search(r'(?is)<meta[^>]+(?:name|property)=["\'](?:og:)?description["\'][^>]*content=["\']([^"\']*)', corps)
+    drapeau = ('vendue' if _TXT_VENDU.search(titres) else 'compromis' if _TXT_COMPROMIS.search(titres) else None) \
+        or drapeau_texte(re.sub(r'<[^>]+>', ' ', titres), meta.group(1) if meta else '')
     m = re.search(r'"price"\s*:\s*(\d{5,7})', corps)
     prix = _prix(int(m.group(1))) if m else None
     if prix is None and drapeau is None:
@@ -176,13 +202,31 @@ def lire_page(url):
     return 'ok', {'prix': prix, 'drapeau': drapeau}
 
 
+def raison_page(url):
+    """None si la page est normale, sinon 'retiree' (page supprimée ou redirigée) ou
+    'indisponible' (page en ligne qui affiche « Cette annonce n'est plus disponible », sans raison)."""
+    code, ent, corps = http_get(url, 'text/html')
+    if code in (404, 410):
+        return 'retiree'
+    if code in (301, 302, 303, 307, 308):
+        return None if ad_id(url) in ent.get('location', '') else 'retiree'
+    if code == 200 and _PLUS_DISPO.search(corps):
+        return 'indisponible'
+    return None
+
+
 def observer(url):
     """('ok', {prix, drapeau}) | ('gone', {}) | ('blocked', {})"""
-    for lecture in (lire_api, lire_page):
-        r = lecture(url)
-        if r is not None:
-            return r
-    return BLOCKED, {}
+    r = lire_api(url)
+    if r is not None and r[0] == 'ok':
+        # L'API peut encore renvoyer une fiche pour une annonce retirée : la page a le dernier mot.
+        raison = raison_page(url)
+        if raison == 'indisponible' and r[1].get('drapeau') == 'vendue':
+            return r          # l'annonceur écrit « vendu » : plus précis que « plus disponible »
+        return (GONE, {'statut': raison}) if raison else r
+    if r is not None:
+        return r
+    return lire_page(url) or (BLOCKED, {})
 
 
 def observer_confirme(url, observe=observer, pause=PAUSE_CONFIRM):
@@ -193,7 +237,7 @@ def observer_confirme(url, observe=observer, pause=PAUSE_CONFIRM):
         return r
     time.sleep(pause)
     r2 = observe(url)
-    if r2[0] == r[0] and r2[1].get('drapeau') == r[1].get('drapeau'):
+    if r2[0] == r[0] and r2[1].get('drapeau') == r[1].get('drapeau') and r2[1].get('statut') == r[1].get('statut'):
         return r
     return BLOCKED, {}
 
@@ -243,7 +287,7 @@ def evoluer(prec, obs, base_prix, aujourdhui, verif_prec):
         nouveau.pop('ancien', None)
         nouveau.pop('prix_date', None)
     if nature == GONE:
-        statut = 'vendue' if prec and prec['statut'] == 'vendue' else 'retiree'
+        statut = 'vendue' if prec and prec['statut'] == 'vendue' else info.get('statut', 'retiree')
     else:
         statut = drapeau or ('prix' if recent else 'disponible')
 
@@ -283,7 +327,7 @@ def traiter(annonces, prec_annonces, prec_verif, observe, aujourdhui, pause=PAUS
     alertes = []
     tombees = [n for n, o in obs.items()
                if (o[0] == GONE or (o[0] == 'ok' and o[1].get('drapeau') == 'vendue'))
-               and (prec_annonces.get(str(n)) or {}).get('statut') not in ('retiree', 'vendue')]
+               and (prec_annonces.get(str(n)) or {}).get('statut') not in ('retiree', 'vendue', 'indisponible')]
     if len(tombees) >= 5 and len(tombees) >= GARDE_FOU * len(annonces):
         alertes.append(f'{len(tombees)} annonces sur {len(annonces)} semblent disparaître en même temps : '
                        'panne ou blocage probable du site, aucun statut changé.')
@@ -300,6 +344,51 @@ def traiter(annonces, prec_annonces, prec_verif, observe, aujourdhui, pause=PAUS
         if texte:
             changements.append((n, label, texte))
     return res, verif, changements, alertes
+
+
+_SENSIBLE = re.compile(r'(?i)(address|street|adresse|lat|lon|position|blur|postal|city|district|zip|insee|geo|photo|image|url|link|phone|mail|contact|agency|agent|user|name|description|title|slug)')
+
+
+def diagnostiquer(refs, annonces):
+    """Affiche dans le journal ce que le site renvoie pour certaines annonces (aucune adresse ni contact)."""
+    for n, label, url, prix in annonces:
+        if str(n) not in refs:
+            continue
+        print(f'::group::Diagnostic réf. {n} ({label})')
+        code, ent, corps = http_get('https://www.bienici.com/realEstateAd.json?id=' +
+                                    urllib.parse.quote(ad_id(url)), 'application/json')
+        print(f'API : code {code}, {len(corps)} caractères, type {ent.get("content-type", "?")}')
+        try:
+            j = json.loads(corps)
+        except ValueError:
+            j = None
+        if isinstance(j, dict):
+            print('Clés de premier niveau : ' + ', '.join(sorted(j)))
+            for k in sorted(j):
+                v = j[k]
+                if _SENSIBLE.search(k) or isinstance(v, (dict, list)):
+                    continue
+                if isinstance(v, str) and len(v) > 60:
+                    continue
+                print(f'  {k} = {v!r}')
+            for k in sorted(j):
+                if isinstance(j[k], dict) and not _SENSIBLE.search(k):
+                    print(f'  {k} = ' + ', '.join(f'{kk}={vv!r}' for kk, vv in j[k].items()
+                                               if not isinstance(vv, (dict, list)) and not _SENSIBLE.search(kk)
+                                               and not (isinstance(vv, str) and len(vv) > 60)))
+        else:
+            print('Début de la réponse : ' + corps[:200].replace('\n', ' '))
+        code, ent, corps = http_get(url, 'text/html')
+        print(f'Page : code {code}, {len(corps)} caractères, redirection : {ent.get("location", "aucune")}')
+        for m in re.finditer(r'(?is)<(title|h1)[^>]*>(.*?)</\1>', corps):
+            print(f'  <{m.group(1)}> {re.sub(r"<[^>]+>", "", m.group(2))[:120]!r}')
+        vus = 0
+        for m in re.finditer(r"(?i)(vendu|plus disponible|compromis|retir|sold|indisponible|unavailable)", corps):
+            print('  … ' + re.sub(r'\s+', ' ', corps[max(0, m.start() - 40):m.end() + 40]) + ' …')
+            vus += 1
+            if vus >= 6:
+                break
+        print('::endgroup::')
 
 
 def lire_annonces():
@@ -344,6 +433,9 @@ def main():
     prec = lire_json(ANNONCES, {})
     prec_annonces = prec.get('biens', {}) if isinstance(prec, dict) else {}
     prec_verif = (lire_json(VERIF, {}) or {}).get('biens', {})
+    refs = {x for x in re.split(r'[,\s]+', os.environ.get('DIAGNOSTIC', '')) if x.isdigit()}
+    if refs:
+        diagnostiquer(refs, annonces)
     res, verif, changements, alertes = traiter(annonces, prec_annonces, prec_verif, observer, aujourdhui)
 
     for a in alertes:
