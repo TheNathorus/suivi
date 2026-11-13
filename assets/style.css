@@ -281,6 +281,7 @@ dialog::backdrop{background:rgba(10,20,16,.6)}
 .f-act{display:grid;gap:8px;margin-top:4px}
 .f-act .btn{width:100%}
 .f-act2{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.fg>.f-act2{margin-top:10px}
 .f-act2 .btn{width:auto;text-decoration:underline;text-underline-offset:3px}
 .fm{display:grid;gap:26px}
 .fm h3{font-family:var(--fh);font-size:1.25rem;margin-bottom:12px}
