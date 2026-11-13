@@ -163,6 +163,25 @@ class Lecture(unittest.TestCase):
                    'annonce/vente': (200, {}, '<h1>Cette annonce n’est plus disponible</h1>')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1')[1]['drapeau'], 'vendue')
 
+    def test_api_hors_marche(self):
+        # Réponse réelle observée pour une annonce dépubliée : status.onTheMarket = False, closingDate renseignée.
+        corps = json.dumps({'price': 390000, 'closingDate': '2026-11-13T08:44:31.551Z', 'publicationDate': '1970-01-01T00:00:00.000Z',
+                            'status': {'onTheMarket': False, 'autoImported': True}})
+        self.fake({'realEstateAd.json': (200, {}, corps)})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'),
+                         (v.GONE, {'statut': 'indisponible', 'depuis': '2026-11-13'}))
+        corps = json.dumps({'price': 390000, 'status': {'onTheMarket': True, 'autoImported': True}})
+        self.fake({'realEstateAd.json': (200, {}, corps)})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), ('ok', {'prix': 390000, 'drapeau': None}))
+
+    def test_depuis_utilise_la_date_du_site(self):
+        obs = {i: OK() for i in range(1, 11)}
+        res, ver, _, _ = jour(obs, {}, {}, J1)
+        obs[7] = (v.GONE, {'statut': 'indisponible', 'depuis': '2026-11-14'})
+        res, ver, _, _ = jour(obs, res, ver, J2)
+        self.assertEqual(res['7']['depuis'], '2026-11-14')
+        self.assertEqual(res['7']['hist'][-1]['d'], '2026-11-14')
+
     def test_api_404_et_pages(self):
         self.fake({'realEstateAd.json': (404, {}, '')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {'statut': 'retiree'}))
