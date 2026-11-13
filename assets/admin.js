@@ -68,11 +68,15 @@ const dirtyCount = () => {
   return n;
 };
 function toast(t) { const e = $('toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 4200); }
+const SORTIS = { vendue: 1, retiree: 1, indisponible: 1 };
 function row(h) {
   const e = etat.biens[h.n], changed = JSON.stringify(e) !== JSON.stringify(saved.biens[h.n]);
-  return '<li class="a-row' + (e.visible ? '' : ' hid') + (changed ? ' chg' : '') + '" data-n="' + h.n + '">' +
+  const auto1 = auto[h.n] && ANNONCES[auto[h.n].statut] ? auto[h.n].statut : '';
+  const an = e.annonce || auto1;   /* l'état forcé l'emporte sur la lecture automatique */
+  const badge = an ? '<span class="annonce a-' + an + '"><span class="adot" aria-hidden="true"></span>' + ANNONCES[an] + '</span>' + (e.annonce ? ' <small>(forcé)</small>' : '') : '';
+  return '<li class="a-row' + (e.visible ? '' : ' hid') + (SORTIS[an] ? ' out' : '') + (changed ? ' chg' : '') + '" data-n="' + h.n + '">' +
     '<img src="../photos/' + pad(h.n) + '-1-s.jpg" alt="" width="120" height="80" loading="lazy">' +
-    '<div class="a-id"><h2>' + esc(h.label) + '</h2><p>' + nf(h.price) + ' € · ' + h.m2 + ' m² · réf. ' + h.n + ' · score ' + h.score + '</p>' +
+    '<div class="a-id"><h2>' + esc(h.label) + '</h2><p>' + nf(h.price) + ' € · ' + h.m2 + ' m² · réf. ' + h.n + ' · score ' + h.score + '</p>' + (badge ? '<p class="a-an">' + badge + '</p>' : '') +
       '<a href="../#bien-' + h.n + '" target="_blank" rel="noopener">Voir la fiche <span aria-hidden="true">↗</span></a></div>' +
     '<label class="switch"><input type="checkbox" role="switch" data-f="visible"' + (e.visible ? ' checked' : '') + '><span class="sw" aria-hidden="true"></span><span class="sw-l">' + (e.visible ? 'Affiché' : 'Masqué') + '</span></label>' +
     '<label class="fld a-statut"><span>Suivi</span><select data-f="statut">' + Object.keys(STATUTS).map((k) => '<option value="' + k + '"' + (k === e.statut ? ' selected' : '') + '>' + STATUTS[k] + '</option>').join('') + '</select></label>' +
@@ -129,7 +133,10 @@ $('a-list').addEventListener('change', (ev) => {
   if (f === 'annonce') { if (t.value) e.annonce = t.value; else delete e.annonce; }   /* ne change pas la date de suivi */
   if (JSON.stringify({ v: e.visible, s: e.statut, n: e.note }) === JSON.stringify({ v: saved.biens[n].visible, s: saved.biens[n].statut, n: saved.biens[n].note })) e.maj = saved.biens[n].maj;
   if (f === 'visible') { li.classList.toggle('hid', !e.visible); li.querySelector('.sw-l').textContent = e.visible ? 'Affiché' : 'Masqué'; }
-  li.classList.toggle('chg', JSON.stringify(e) !== JSON.stringify(saved.biens[n]));
+  if (f === 'annonce') {   /* redessine la ligne : pastille, croix et grisé suivent le choix */
+    const h = D.biens.filter((x) => String(x.n) === n)[0], tmp = document.createElement('ul');
+    tmp.innerHTML = row(h); const nl = tmp.firstChild; li.replaceWith(nl); nl.querySelector('[data-f=annonce]').focus();
+  } else li.classList.toggle('chg', JSON.stringify(e) !== JSON.stringify(saved.biens[n]));
   const shown = D.biens.filter((h) => etat.biens[h.n].visible).length;
   $('a-sum').textContent = shown + ' bien' + (shown > 1 ? 's affichés' : ' affiché') + ' sur ' + D.biens.length + '. Les biens masqués disparaissent du site, mais restent ici.';
   bar();

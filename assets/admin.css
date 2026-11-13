@@ -15,6 +15,10 @@
 .a-row.chg{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
 .a-row img{width:96px;height:64px;object-fit:cover;border-radius:8px}
 .a-row.hid img,.a-row.hid .a-id{opacity:.45}
+.a-row.out img{filter:grayscale(1);opacity:.55}
+.a-row.out .a-id h2{color:var(--muted)}
+.a-an{margin-top:4px}
+.a-an small{color:var(--muted)}
 .a-id h2{font-family:var(--fh);font-size:1.15rem}
 .a-id p{font-size:.85rem;color:var(--muted)}
 .a-id a{font-size:.85rem}
