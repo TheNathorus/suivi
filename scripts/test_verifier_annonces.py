@@ -143,6 +143,14 @@ class Lecture(unittest.TestCase):
                    'annonce/vente': (200, {}, '<html><h1>Cette annonce n’est plus disponible</h1></html>')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
 
+    def test_api_ok_mais_page_retiree(self):
+        self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 390000})),
+                   'annonce/vente': (200, {}, '<html><h1>Cette annonce n’est plus disponible</h1></html>')})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.GONE, {}))
+        self.fake({'realEstateAd.json': (200, {}, json.dumps({'price': 390000})),
+                   'annonce/vente': (200, {}, '<html><h1>Maison à vendre</h1></html>')})
+        self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), ('ok', {'prix': 390000, 'drapeau': None}))
+
     def test_blocage(self):
         self.fake({'realEstateAd.json': (403, {}, ''),
                    'annonce/vente': (200, {}, '<title>Just a moment...</title>')})

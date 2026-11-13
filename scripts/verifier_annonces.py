@@ -176,13 +176,25 @@ def lire_page(url):
     return 'ok', {'prix': prix, 'drapeau': drapeau}
 
 
+def page_annonce_retiree(url):
+    """Vrai si la page de l'annonce affiche « Cette annonce n'est plus disponible » (ou n'existe plus)."""
+    code, ent, corps = http_get(url, 'text/html')
+    if code in (404, 410):
+        return True
+    if code in (301, 302, 303, 307, 308):
+        return ad_id(url) not in ent.get('location', '')
+    return code == 200 and bool(_PLUS_DISPO.search(corps))
+
+
 def observer(url):
     """('ok', {prix, drapeau}) | ('gone', {}) | ('blocked', {})"""
-    for lecture in (lire_api, lire_page):
-        r = lecture(url)
-        if r is not None:
-            return r
-    return BLOCKED, {}
+    r = lire_api(url)
+    if r is not None and r[0] == 'ok':
+        # L'API peut encore renvoyer une fiche pour une annonce retirée : la page a le dernier mot.
+        return (GONE, {}) if page_annonce_retiree(url) else r
+    if r is not None:
+        return r
+    return lire_page(url) or (BLOCKED, {})
 
 
 def observer_confirme(url, observe=observer, pause=PAUSE_CONFIRM):
