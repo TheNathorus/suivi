@@ -20,7 +20,7 @@
 .a-id a{font-size:.85rem}
 .a-row .fld{font-weight:500;font-size:.8rem;color:var(--muted)}
 .a-row .fld select,.a-row .fld input{color:var(--fg)}
-.switch,.a-statut,.a-note{grid-column:1/-1}
+.switch,.a-statut,.a-annonce,.a-note{grid-column:1/-1}
 .switch{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;font-weight:600;justify-self:start}
 .switch input{position:absolute;opacity:0;width:52px;height:30px;margin:0;cursor:pointer}
 .sw{width:52px;height:30px;border-radius:999px;background:var(--line2);position:relative;transition:background .15s;flex:none}
@@ -32,8 +32,8 @@
 .a-two{display:grid;gap:12px}
 .a-save p{font-weight:600;margin-right:auto}
 @media (min-width:760px){
-  .a-row{grid-template-columns:96px minmax(170px,1.1fr) 130px 190px minmax(180px,1.4fr)}
-  .switch,.a-statut,.a-note{grid-column:auto}
+  .a-row{grid-template-columns:96px minmax(170px,1.1fr) 130px 190px 190px minmax(180px,1.4fr)}
+  .switch,.a-statut,.a-annonce,.a-note{grid-column:auto}
   .a-two{grid-template-columns:1fr 1fr}
 }
 @media (max-width:520px){.admin .top-in{gap:8px}.admin .top-in .btn.ghost{display:none}.admin .top-in .btn{padding:0 12px}}

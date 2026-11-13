@@ -33,14 +33,44 @@ const STATUTS = {
   vu: 'Visité',
   ecarte: 'Écarté'
 };
+/* ---------- état de l'annonce (vérifié chaque matin par scripts/verifier_annonces.py) ---------- */
+const ANNONCES = {
+  disponible: 'Disponible',
+  prix: 'Prix modifié',
+  compromis: 'Sous compromis',
+  vendue: 'Vendue',
+  retiree: 'Retirée',
+  verifier: 'À vérifier'
+};
+const MOIS_C = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+function dateC(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? (+m[3] === 1 ? '1er' : +m[3]) + ' ' + MOIS_C[+m[2] - 1] : '';
+}
+/* Statut d'annonce d'un bien : la correction manuelle de l'administration l'emporte sur la lecture automatique. */
+function lireAnnonce(h, a, v, force) {
+  const auto = a && ANNONCES[a.statut] ? a : null;
+  const statut = ANNONCES[force] ? force : auto ? auto.statut : '';
+  if (!statut) return null;
+  const x = auto || {};
+  return {
+    statut, auto: auto ? auto.statut : '', force: !!ANNONCES[force],
+    prix: x.prix || 0, ancien: statut === 'prix' || x.ancien ? x.ancien || 0 : 0, depuis: x.depuis || '',
+    verifie: (v && v.ok) || '', hist: (x.hist || []).slice().reverse()
+  };
+}
+const sorti = (h) => h.an && (h.an.statut === 'vendue' || h.an.statut === 'retiree');
 let H = [];
 let CONTACT = { email: '', tel: '' };
-function applyEtat(etat) {
+function applyEtat(etat, ann, ver) {
   const eb = (etat && etat.biens) || {};
+  const ab = (ann && ann.biens) || {}, vb = (ver && ver.biens) || {};
   H = D.biens.filter((h) => !(eb[h.n] && eb[h.n].visible === false)).map((h) => {
     const e = eb[h.n] || {};
+    const an = lireAnnonce(h, ab[h.n], vb[h.n], e.annonce);
+    const price = an && an.prix ? an.prix : h.price;   /* prix lu dans l'annonce, sinon prix de la liste */
     return Object.assign({}, h, {
-      ppm: Math.round(h.price / h.m2),
+      price, ppm: Math.round(price / h.m2), an,
       statut: STATUTS[e.statut] ? e.statut : 'etude',
       maj: e.maj || D.updated,
       suivi: e.note || ''
@@ -93,6 +123,28 @@ function cardChips(h) {
 }
 const dpeBadge = (c) => '<span class="dpe dpe-' + esc(c) + '" title="Diagnostic de performance énergétique">DPE ' + esc(c) + '</span>';
 const statutBadge = (h) => '<span class="statut s-' + h.statut + '">' + esc(STATUTS[h.statut]) + '</span>';
+/* Pastille d'état de l'annonce (texte et couleur) et ligne de détail. */
+const annonceBadge = (h) => h.an ? '<span class="annonce a-' + h.an.statut + '"><span class="adot" aria-hidden="true"></span>' + esc(ANNONCES[h.an.statut]) + '</span>' : '';
+function annonceDetail(h) {
+  const a = h.an; if (!a) return '';
+  const t = [];
+  if (a.statut === 'prix' && a.ancien && a.prix) t.push('avant ' + eur(a.ancien));
+  if (a.statut === 'vendue' || a.statut === 'retiree' || a.statut === 'compromis') t.push('depuis le ' + dateC(a.depuis));
+  if (a.statut === 'verifier') t.push('lecture bloquée, aucune conclusion');
+  if (a.force) t.push('indiqué à la main');
+  else if (a.verifie) t.push('vérifiée le ' + dateC(a.verifie));
+  return t.filter((x) => x && x !== 'depuis le ').join(' · ');
+}
+const annonceLine = (h) => h.an ? '<p class="annonce-l a-' + h.an.statut + '">' + annonceBadge(h) + '<span class="muted">' + esc(annonceDetail(h)) + '</span></p>' : '';
+const prixAncien = (h) => h.an && h.an.statut === 'prix' && h.an.ancien ? '<s class="old">' + eur(h.an.ancien) + '</s>' : '';
+function annonceBloc(h) {
+  if (!h.an) return '';
+  const ev = h.an.hist.slice(0, 6).map((e) => '<li><b>' + dateC(e.d) + '</b> ' + esc(ANNONCES[e.s] || '') + (e.a && e.p ? ' (' + eur(e.a) + ' → ' + eur(e.p) + ')' : e.p && e.s !== 'verifier' ? ' · ' + eur(e.p) : '') + '</li>').join('');
+  return '<div class="f-annonce a-' + h.an.statut + '">' + annonceLine(h) +
+    (h.an.statut === 'vendue' || h.an.statut === 'retiree' ? '<p class="note">Cette annonce n’est plus en ligne : le bien reste affiché pour garder l’historique.</p>' : '') +
+    (h.an.statut === 'verifier' ? '<p class="note">Le site de l’annonce bloque la lecture automatique. Ouvrez l’annonce d’origine pour vérifier.</p>' : '') +
+    (ev ? '<details class="f-hist"><summary>Historique de l’annonce</summary><ul>' + ev + '</ul></details>' : '') + '</div>';
+}
 const titre = (h) => 'Maison ' + h.pieces + ' pièces';
 
 /* ---------- état de l'interface ---------- */
@@ -122,12 +174,12 @@ function visible() {
     if (S.pool === 'create' && !(h.pool === 'N' && h.land >= 600)) return false;
     if (S.statut && h.statut !== S.statut) return false;
     for (const k in S.tog) if (S.tog[k] && !TOG[k].f(h)) return false;
-    if (q && norm(h.label + ' ' + h.notes + ' ' + titre(h) + ' ' + STATUTS[h.statut]).indexOf(q) < 0) return false;
+    if (q && norm(h.label + ' ' + h.notes + ' ' + titre(h) + ' ' + STATUTS[h.statut] + ' ' + (h.an ? ANNONCES[h.an.statut] : '')).indexOf(q) < 0) return false;
     return true;
   });
   const c = SORTS[S.sort] || SORTS.score;
-  /* les biens écartés passent en fin de liste */
-  a.sort((x, y) => ((x.statut === 'ecarte') - (y.statut === 'ecarte')) || c(x, y) || (y.score - x.score));
+  /* les biens écartés, vendus ou retirés passent en fin de liste */
+  a.sort((x, y) => ((x.statut === 'ecarte' || !!sorti(x)) - (y.statut === 'ecarte' || !!sorti(y))) || c(x, y) || (y.score - x.score));
   return a;
 }
 function activeFilters() {
@@ -172,7 +224,7 @@ function card(h, idx) {
   }
   let dots = '';
   for (let i = 0; i < n; i++) dots += '<i' + (i ? '' : ' class="on"') + '></i>';
-  return '<article class="card' + (sel ? ' sel' : '') + (h.statut === 'ecarte' ? ' off' : '') + '" data-n="' + h.n + '">' +
+  return '<article class="card' + (sel ? ' sel' : '') + (h.statut === 'ecarte' || sorti(h) ? ' off' : '') + '" data-n="' + h.n + '">' +
     '<div class="car">' +
       '<div class="car-track">' + slides + '</div>' +
       '<button type="button" class="car-nav prev" data-car="-1" aria-label="Photo précédente" hidden>‹</button>' +
@@ -182,9 +234,9 @@ function card(h, idx) {
     '</div>' +
     '<div class="cbody">' +
       '<div class="chead"><div><h3><a href="#bien-' + h.n + '" tabindex="-1">' + esc(h.label) + '</a></h3><p class="ctype">' + titre(h) + ' · réf. ' + h.n + '</p></div>' +
-      '<div class="cprice"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></div>' +
+      '<div class="cprice">' + prixAncien(h) + '<b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></div>' +
       '<p class="cfacts"><span>' + h.m2 + NBSP + 'm²</span><span>' + h.ch + NBSP + 'ch.</span><span>Terrain ' + nf(h.land) + NBSP + 'm²</span>' + dpeBadge(h.dpe) + '</p>' +
-      cardChips(h) +
+      annonceLine(h) + cardChips(h) +
       '<p class="cnotes">' + esc(h.notes) + '</p>' +
       '<div class="cact"><a class="btn primary small" href="#bien-' + h.n + '">Voir la fiche</a>' +
       '<label class="cmp"><input type="checkbox" data-cmp="' + h.n + '"' + (sel ? ' checked' : '') + '><span>Comparer</span></label></div>' +
@@ -192,12 +244,12 @@ function card(h, idx) {
 }
 
 /* ---------- tableau ---------- */
-const COLS = [['n', 'Réf.'], ['label', 'Commune'], ['price', 'Prix', 'priceAsc'], ['ppm', '€/m²', 'ppm'], ['m2', 'Surface', 'm2'], ['land', 'Terrain', 'land'], ['ch', 'Ch.'], ['dpe', 'DPE'], ['pool', 'Piscine'], ['suite', 'Suite'], ['dep', 'Dépendance'], ['clim', 'Clim'], ['gare', 'Gare', 'gare'], ['etat', 'État'], ['statut', 'Suivi'], ['score', 'Score', 'score']];
+const COLS = [['n', 'Réf.'], ['label', 'Commune'], ['price', 'Prix', 'priceAsc'], ['ppm', '€/m²', 'ppm'], ['m2', 'Surface', 'm2'], ['land', 'Terrain', 'land'], ['ch', 'Ch.'], ['dpe', 'DPE'], ['pool', 'Piscine'], ['suite', 'Suite'], ['dep', 'Dépendance'], ['clim', 'Clim'], ['gare', 'Gare', 'gare'], ['etat', 'État'], ['statut', 'Suivi'], ['annonce', 'Annonce'], ['score', 'Score', 'score']];
 function cell(h, k) {
   switch (k) {
     case 'n': return '<td class="num muted">' + h.n + '</td>';
     case 'label': return '<th scope="row" class="name"><a href="#bien-' + h.n + '">' + esc(h.label) + '</a></th>';
-    case 'price': return '<td class="num"><b>' + eur(h.price) + '</b></td>';
+    case 'price': return '<td class="num">' + prixAncien(h) + '<b>' + eur(h.price) + '</b></td>';
     case 'ppm': return '<td class="num">' + nf(h.ppm) + '</td>';
     case 'm2': return '<td class="num">' + h.m2 + NBSP + 'm²</td>';
     case 'land': return '<td class="num">' + nf(h.land) + NBSP + 'm²</td>';
@@ -211,6 +263,7 @@ function cell(h, k) {
     case 'suite': case 'dep': case 'clim': case 'etat': return '<td>' + chip(st(h, k).s, short(st(h, k))) + '</td>';
     case 'gare': return '<td>' + chip(st(h, 'gare').s, '≈ ' + h.gare + ' min') + '</td>';
     case 'statut': return '<td>' + statutBadge(h) + '</td>';
+    case 'annonce': return '<td>' + (annonceBadge(h) || '<span class="muted">Pas encore vérifiée</span>') + '</td>';
     case 'score': return '<td class="num"><b>' + h.score + '</b></td>';
   }
 }
@@ -220,7 +273,7 @@ function table(a) {
     const dir = S.sort === 'priceDesc' || S.sort === 'score' || S.sort === 'm2' || S.sort === 'land' ? 'descending' : 'ascending';
     return '<th scope="col"' + (cur ? ' aria-sort="' + dir + '"' : '') + '>' + (c[2] ? '<button type="button" data-sort="' + c[2] + '">' + c[1] + '<span aria-hidden="true">' + (cur ? (dir === 'descending' ? ' ↓' : ' ↑') : '') + '</span></button>' : c[1]) + '</th>';
   }).join('') + '<th scope="col">Comparer</th>';
-  const rows = a.map((h) => '<tr' + (h.statut === 'ecarte' ? ' class="off"' : '') + '>' + COLS.map((c) => cell(h, c[0])).join('') +
+  const rows = a.map((h) => '<tr' + (h.statut === 'ecarte' || sorti(h) ? ' class="off"' : '') + '>' + COLS.map((c) => cell(h, c[0])).join('') +
     '<td class="ctr"><input type="checkbox" data-cmp="' + h.n + '" aria-label="Comparer ' + esc(h.label) + '"' + (S.cmp.indexOf(h.n) >= 0 ? ' checked' : '') + '></td></tr>').join('');
   return '<div class="tablewrap" tabindex="0" role="region" aria-label="Tableau des biens, défilement horizontal"><table><thead><tr>' + th + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
@@ -409,10 +462,10 @@ function fiche(n) {
         '<span class="gal-count" id="gal-count">1 / ' + h.nph + '</span><span class="gal-zoom" aria-hidden="true">Agrandir</span>' +
       '</div><div class="gal-thumbs" id="gal-thumbs">' + thumbs + '</div></div>' +
       '<aside class="fs">' +
-        '<p class="f-meta">' + statutBadge(h) + '<span class="muted">Réf. ' + h.n + ' · mis à jour le ' + dateFr(h.maj) + '</span></p>' +
+        '<p class="f-meta">' + statutBadge(h) + '<span class="muted">Réf. ' + h.n + ' · mis à jour le ' + dateFr(h.maj) + '</span></p>' + annonceBloc(h) +
         '<h2 id="fiche-t">' + esc(h.label) + '</h2><p class="ctype">' + titre(h) + ' · ' + h.m2 + NBSP + 'm² · ' + h.ch + ' chambres</p>' +
         (h.suivi ? '<p class="f-suivi">' + esc(h.suivi) + '</p>' : '') +
-        '<p class="f-price"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></p>' + dvfBlock(h) +
+        '<p class="f-price">' + prixAncien(h) + '<b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></p>' + dvfBlock(h) +
         '<div class="f-score" role="img" aria-label="Score ' + h.score + ' sur 100, rang ' + h.rank + ' sur ' + H.length + '"><b>' + h.score + '</b><span>/100</span><div class="bar"><i style="width:' + h.score + '%"></i></div><span class="rk">' + (h.rank === 1 ? '1er' : h.rank + 'e') + ' sur ' + H.length + '</span></div>' +
         '<div class="f-act">' +
           '<a class="btn primary" href="' + esc(h.url) + '" target="_blank" rel="noopener">Voir l’annonce d’origine <span aria-hidden="true">↗</span></a>' +
@@ -472,7 +525,7 @@ function compare() {
   }).join('') + stat.map((r) => '<tr><th scope="row">' + r[0] + '</th>' + hs.map((h) => '<td>' + chip(st(h, r[1]).s, short(st(h, r[1]))) + '</td>').join('') + '</tr>').join('') +
     '<tr><th scope="row">En bref</th>' + hs.map((h) => '<td class="txt">' + esc(h.notes) + '</td>').join('') + '</tr>' +
     '<tr><th scope="row">Questions</th>' + hs.map((h) => '<td class="txt"><ol class="qlist">' + h.q.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol></td>').join('') + '</tr>' +
-    '<tr><th scope="row">Annonce</th>' + hs.map((h) => '<td><a class="btn small" href="' + esc(h.url) + '" target="_blank" rel="noopener">Ouvrir <span aria-hidden="true">↗</span></a></td>').join('') + '</tr>';
+    '<tr><th scope="row">Annonce</th>' + hs.map((h) => '<td>' + (annonceBadge(h) ? annonceBadge(h) + '<br>' : '') + '<a class="btn small" href="' + esc(h.url) + '" target="_blank" rel="noopener">Ouvrir <span aria-hidden="true">↗</span></a></td>').join('') + '</tr>';
   dC.innerHTML = '<header class="dh"><h2 id="cmp-t">Comparaison de ' + hs.length + ' biens</h2><button type="button" class="btn ghost small x" data-close aria-label="Fermer la comparaison">✕</button></header>' +
     '<div class="db"><div class="dacts"><button type="button" class="btn small" data-sendcmp>Préparer un e-mail</button><button type="button" class="btn small" data-printcmp>Imprimer</button><button type="button" class="btn small" data-linkcmp>Copier le lien</button></div><p class="note">Le fond vert marque la meilleure valeur de chaque ligne. Vert : présent dans l’annonce. Orange : à vérifier ou à créer. Rouge : absent.</p>' +
     '<div class="cmpwrap" tabindex="0" role="region" aria-label="Tableau de comparaison, défilement horizontal"><table class="cmpt" style="--n:' + hs.length + '"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
@@ -508,7 +561,7 @@ function printSheets(hs) {
   $('print').innerHTML = hs.map((h) => {
     let ph = '';
     for (let k = 0; k < Math.min(3, h.nph); k++) ph += '<img src="' + photo(h, k, 's') + '" alt="">';
-    return '<section class="sheet"><header><div><h1>' + esc(h.label) + '</h1><p>' + titre(h) + ' · réf. ' + h.n + ' · ' + esc(STATUTS[h.statut]) + '</p></div><div class="p-price"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></header>' +
+    return '<section class="sheet"><header><div><h1>' + esc(h.label) + '</h1><p>' + titre(h) + ' · réf. ' + h.n + ' · ' + esc(STATUTS[h.statut]) + (h.an && h.an.statut !== 'disponible' ? ' · annonce : ' + esc(ANNONCES[h.an.statut]).toLowerCase() : '') + '</p></div><div class="p-price"><b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></header>' +
       '<div class="p-photos">' + ph + '</div>' +
       '<table class="p-facts"><tr><th>Surface</th><td>' + h.m2 + ' m²</td><th>Terrain</th><td>' + nf(h.land) + ' m²</td><th>Chambres</th><td>' + h.ch + '</td></tr><tr><th>DPE</th><td>' + esc(h.dpe) + '</td><th>Année</th><td>' + (h.year || 'n. p.') + '</td><th>Gare</th><td>' + esc(h.gnote) + '</td></tr><tr><th>Score</th><td>' + h.score + ' / 100</td><th>Annonce</th><td colspan="3">' + esc(h.url.replace('https://www.', '')) + '</td></tr></table>' +
       '<p>' + esc(h.notes) + '</p>' +
@@ -613,8 +666,8 @@ window.addEventListener('afterprint', () => { $('print').innerHTML = ''; });
 window.matchMedia('(max-width: 960px)').addEventListener('change', () => { if (!isDrawer()) closeFilters(); });
 
 /* ---------- démarrage ---------- */
-function init(etat) {
-  applyEtat(etat);
+function init(etat, ann, ver) {
+  applyEtat(etat, ann, ver);
   const prices = H.map((h) => h.price);
   PMIN = Math.min.apply(null, prices); PMAX = Math.max.apply(null, prices); S.pmax = PMAX;
   const pm = $('f-pmax'); pm.min = Math.floor(PMIN / 5000) * 5000; pm.max = PMAX;
@@ -631,5 +684,6 @@ function init(etat) {
   if (ch) { c.href = ch; c.hidden = false; }
   syncForm(); render(); route();
 }
-fetch('data/etat.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null).then(init);
+const lire = (f) => fetch(f, { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null);
+Promise.all([lire('data/etat.json'), lire('data/annonces.json'), lire('data/verification.json')]).then((r) => init(r[0], r[1], r[2]));
 })();
