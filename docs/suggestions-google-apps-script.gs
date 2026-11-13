@@ -3,6 +3,8 @@
  *
  * Mode d'emploi : voir « Suggestions des agents » dans le README du dépôt.
  * 1. Créez une feuille Google Sheets vide, puis Extensions > Apps Script.
+ *    (Si l'éditeur refuse de s'ouvrir, souvent à cause de plusieurs comptes Google connectés : ouvrez script.google.com
+ *    dans une fenêtre de navigation privée avec un seul compte, Nouveau projet, et renseignez ID_FEUILLE ci-dessous.)
  * 2. Collez ce fichier à la place du code, changez CLE (votre mot de passe de lecture), enregistrez.
  * 3. Déployer > Nouveau déploiement > Application Web.
  *    Exécuter en tant que : moi. Qui a accès : tout le monde. Copiez l'adresse qui se termine par /exec.
@@ -11,11 +13,15 @@
  * avec le mot de passe CLE. Rien d'autre n'est exposé.
  */
 const CLE = 'REMPLACEZ-PAR-UNE-LONGUE-PHRASE-SECRETE';
+// Si vous avez créé un projet Apps Script séparé (script.google.com > Nouveau projet) au lieu de l'ouvrir depuis la feuille,
+// collez ici l'identifiant de la feuille (la longue suite de lettres entre /d/ et /edit dans son adresse). Sinon, laissez vide.
+const ID_FEUILLE = '';
 const ENTETE = ['id', 'date', 'bien', 'label', 'nom', 'types', 'statut', 'prix', 'texte'];
 const MAX_LIGNES = 2000;
 
 function feuille_() {
-  const f = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const classeur = ID_FEUILLE ? SpreadsheetApp.openById(ID_FEUILLE) : SpreadsheetApp.getActiveSpreadsheet();
+  const f = classeur.getSheets()[0];
   if (f.getLastRow() === 0) f.appendRow(ENTETE);
   return f;
 }
