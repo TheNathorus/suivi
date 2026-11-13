@@ -1,0 +1,61 @@
+name: Vérifier les annonces
+
+# Chaque matin vers 7 h (heure de Paris), vérifie si les annonces sont toujours en ligne
+# et publie le résultat directement sur main. Chaque mise à jour est un commit distinct.
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 7 h en heure d'été
+    - cron: '0 6 * * *'   # 7 h en heure d'hiver
+  workflow_dispatch:       # bouton « Run workflow » pour lancer une vérification à la main
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: annonces
+  cancel-in-progress: false
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Choisir la bonne des deux heures
+        id: heure
+        run: |
+          h=$(TZ=Europe/Paris date +%H)
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$h" != "07" ]; then
+            echo "go=non" >> "$GITHUB_OUTPUT"
+            echo "Il est ${h} h à Paris : la vérification a lieu à 7 h."
+          else
+            echo "go=oui" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.heure.outputs.go == 'oui'
+
+      - name: Vérifier les annonces
+        if: steps.heure.outputs.go == 'oui'
+        env:
+          MESSAGE_FILE: ${{ runner.temp }}/message.txt
+        run: python3 scripts/verifier_annonces.py
+
+      - name: Publier la mise à jour
+        if: steps.heure.outputs.go == 'oui'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE_FILE: ${{ runner.temp }}/message.txt
+        run: |
+          git config user.name "Suivi (mise à jour automatique)"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/annonces.json data/verification.json
+          if git diff --cached --quiet; then
+            echo "Rien à publier."
+            exit 0
+          fi
+          git commit -F "$MESSAGE_FILE"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          # Demande explicitement la mise en ligne du site (un envoi par le robot ne la déclenche pas toujours).
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Mise en ligne déjà en cours ou refusée : sans conséquence."

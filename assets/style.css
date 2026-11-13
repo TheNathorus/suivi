@@ -135,6 +135,21 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none
 .statut{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:.78rem;font-weight:600;background:#fff;color:#1b2622;box-shadow:0 1px 4px rgba(0,0,0,.2);white-space:nowrap}
 .statut::before{content:"";width:8px;height:8px;border-radius:50%;background:#7b8a84}
 .s-questions::before{background:#c98a0b}.s-visite::before{background:#2a6fdb}.s-vu::before{background:#17803f}.s-ecarte::before{background:#b3362c}
+/* état de l'annonce (vérifié chaque matin) */
+.annonce{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px 2px 8px;font-size:.78rem;font-weight:600;border:1px solid var(--line2);background:var(--surface);color:var(--fg);white-space:nowrap}
+.adot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.a-prix .adot{background:#2a6fdb}.a-compromis .adot{background:#c98a0b}.a-vendue .adot{background:var(--no)}.a-retiree .adot{background:#6b7773}
+.a-verifier .adot{background:transparent;border:2px solid #7b8a84}
+@media (prefers-color-scheme:dark){.a-prix .adot{background:#6aa3f5}.a-compromis .adot{background:#f0c35a}.a-retiree .adot{background:#9fada6}}
+.annonce-l{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:.8rem;margin:2px 0 6px}
+.old{font-size:.8rem;font-weight:400;color:var(--muted);margin-right:6px}
+.cprice .old{display:block;margin:0}
+.f-price .old{font-size:1rem}
+.f-annonce{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface)}
+.f-annonce .annonce-l{margin:0}
+.f-hist summary{cursor:pointer;font-size:.85rem;color:var(--accent);min-height:32px;display:flex;align-items:center}
+.f-hist ul{display:grid;gap:2px;font-size:.85rem;padding:4px 0 2px}
+.cmpt .annonce{margin-bottom:6px}
 td .statut,.f-meta .statut,.cmpt .statut{box-shadow:none;border:1px solid var(--line2);background:var(--surface);color:var(--fg)}
 .cbody{display:flex;flex-direction:column;gap:12px;padding:16px;flex:1}
 .chead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}

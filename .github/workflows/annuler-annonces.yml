@@ -1,0 +1,61 @@
+name: Annuler une mise à jour des annonces
+
+# Remet data/annonces.json dans l'état d'avant une mise à jour automatique.
+# Sans réponse au champ ci-dessous, annule la dernière mise à jour qui a changé un statut.
+# L'historique reste intact : l'annulation est un nouveau commit, jamais une réécriture.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Numéro du commit à annuler (facultatif, 7 à 40 caractères, visible dans l'historique des commits). Vide = la dernière mise à jour."
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: annonces
+  cancel-in-progress: false
+
+jobs:
+  annuler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Annuler
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -eu
+          cible="$COMMIT"
+          if [ -z "$cible" ]; then
+            cible=$(git log -1 --format=%H -- data/annonces.json)
+          fi
+          if ! printf '%s' "$cible" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::Numéro de commit invalide."; exit 1
+          fi
+          cible=$(git rev-parse --verify "${cible}^{commit}")
+          titre=$(git log -1 --format=%s "$cible")
+          if git cat-file -e "${cible}^:data/annonces.json" 2>/dev/null; then
+            git show "${cible}^:data/annonces.json" > data/annonces.json
+          else
+            printf '{\n "biens": {}\n}\n' > data/annonces.json
+          fi
+          if git diff --quiet -- data/annonces.json; then
+            echo "Les annonces sont déjà dans l'état d'avant ce commit : rien à annuler."; exit 0
+          fi
+          git config user.name "Suivi (mise à jour automatique)"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/annonces.json
+          git commit -m "Annulation de la mise à jour des annonces : ${titre}" \
+                     -m "Les statuts des annonces reviennent à ceux d'avant le commit ${cible}. La vérification de demain peut les changer de nouveau si le site affiche toujours la même chose : pour fixer un statut, utilisez le champ « Annonce » de la page /admin/."
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Mise en ligne déjà en cours ou refusée : sans conséquence."

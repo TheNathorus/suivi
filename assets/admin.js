@@ -10,9 +10,10 @@ const nf = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
 const STATUTS = { etude: 'À étudier', questions: 'Questions envoyées', visite: 'Visite à prévoir', vu: 'Visité', ecarte: 'Écarté' };
+const ANNONCES = { disponible: 'Disponible', prix: 'Prix modifié', compromis: 'Sous compromis', vendue: 'Vendue', retiree: 'Retirée', verifier: 'À vérifier' };
 const KEY = 'suivi.admin.token';
 
-let token = '', sha = '', saved = null, etat = null, busy = false;
+let token = '', sha = '', saved = null, etat = null, busy = false, auto = {};
 
 /* ---------- stockage du jeton ---------- */
 function readToken() { try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
@@ -45,6 +46,7 @@ function normalize(raw) {
   D.biens.forEach((h) => {
     const x = (raw && raw.biens && raw.biens[h.n]) || {};
     e.biens[h.n] = { visible: x.visible !== false, statut: STATUTS[x.statut] ? x.statut : 'etude', maj: x.maj || D.updated, note: x.note || '' };
+    if (ANNONCES[x.annonce]) e.biens[h.n].annonce = x.annonce;   /* absent = lecture automatique */
   });
   return e;
 }
@@ -53,7 +55,8 @@ function load() {
     if (r.status === 404) return r.json().then(() => { sha = ''; return normalize(null); });
     if (!r.ok) throw fail(r.status, false);
     return r.json().then((j) => { sha = j.sha; return normalize(JSON.parse(b64dec(j.content))); });
-  });
+  }).then((e) => fetch('../data/annonces.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null)
+    .then((a) => { auto = (a && a.biens) || {}; return e; }));
 }
 
 /* ---------- rendu ---------- */
@@ -73,6 +76,7 @@ function row(h) {
       '<a href="../#bien-' + h.n + '" target="_blank" rel="noopener">Voir la fiche <span aria-hidden="true">↗</span></a></div>' +
     '<label class="switch"><input type="checkbox" role="switch" data-f="visible"' + (e.visible ? ' checked' : '') + '><span class="sw" aria-hidden="true"></span><span class="sw-l">' + (e.visible ? 'Affiché' : 'Masqué') + '</span></label>' +
     '<label class="fld a-statut"><span>Suivi</span><select data-f="statut">' + Object.keys(STATUTS).map((k) => '<option value="' + k + '"' + (k === e.statut ? ' selected' : '') + '>' + STATUTS[k] + '</option>').join('') + '</select></label>' +
+    '<label class="fld a-annonce"><span>Annonce</span><select data-f="annonce"><option value="">Automatique' + (auto[h.n] && ANNONCES[auto[h.n].statut] ? ' (' + ANNONCES[auto[h.n].statut].toLowerCase() + ')' : '') + '</option>' + Object.keys(ANNONCES).map((k) => '<option value="' + k + '"' + (k === e.annonce ? ' selected' : '') + '>Forcer : ' + ANNONCES[k] + '</option>').join('') + '</select></label>' +
     '<label class="fld a-note"><span>Note visible sur la fiche</span><input type="text" data-f="note" maxlength="140" value="' + esc(e.note) + '" placeholder="Ex. : visite le 14 novembre à 10 h"></label>' +
     '</li>';
 }
@@ -122,6 +126,7 @@ $('a-list').addEventListener('change', (ev) => {
   if (f === 'visible') e.visible = t.checked;
   if (f === 'statut') { e.statut = t.value; e.maj = today(); }
   if (f === 'note') { e.note = t.value.trim(); e.maj = today(); }
+  if (f === 'annonce') { if (t.value) e.annonce = t.value; else delete e.annonce; }   /* ne change pas la date de suivi */
   if (JSON.stringify({ v: e.visible, s: e.statut, n: e.note }) === JSON.stringify({ v: saved.biens[n].visible, s: saved.biens[n].statut, n: saved.biens[n].note })) e.maj = saved.biens[n].maj;
   if (f === 'visible') { li.classList.toggle('hid', !e.visible); li.querySelector('.sw-l').textContent = e.visible ? 'Affiché' : 'Masqué'; }
   li.classList.toggle('chg', JSON.stringify(e) !== JSON.stringify(saved.biens[n]));
