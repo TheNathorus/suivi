@@ -60,7 +60,8 @@ function lireAnnonce(h, a, v, force) {
     verifie: (v && v.ok) || '', hist: (x.hist || []).slice().reverse()
   };
 }
-const sorti = (h) => h.an && (h.an.statut === 'vendue' || h.an.statut === 'retiree' || h.an.statut === 'indisponible');
+const SORTIE = { vendue: 1, retiree: 1, indisponible: 1 };
+const sorti = (h) => h.an && SORTIE[h.an.statut];
 let H = [];
 let CONTACT = { email: '', tel: '' };
 function applyEtat(etat, ann, ver) {
@@ -151,7 +152,7 @@ function annonceBloc(h) {
 const titre = (h) => 'Maison ' + h.pieces + ' pièces';
 
 /* ---------- état de l'interface ---------- */
-const S = { view: store.get('view', 'cards'), sort: 'score', q: '', commune: '', pmax: 0, m2: 0, ch: 0, pool: 'all', tog: {}, statut: '', cmp: store.get('cmp', []) };
+const S = { view: store.get('view', 'cards'), sort: 'score', q: '', commune: '', pmax: 0, m2: 0, ch: 0, pool: 'all', tog: {}, statut: '', annonce: '', cmp: store.get('cmp', []) };
 if (['cards', 'table', 'map'].indexOf(S.view) < 0) S.view = 'cards';
 let PMIN = 0, PMAX = 0;
 const TOG = {
@@ -176,6 +177,7 @@ function visible() {
     if (S.pool === 'yes' && h.pool !== 'Y') return false;
     if (S.pool === 'create' && !(h.pool === 'N' && h.land >= 600)) return false;
     if (S.statut && h.statut !== S.statut) return false;
+    if (S.annonce === 'enligne' ? sorti(h) : S.annonce && (!h.an || h.an.statut !== S.annonce)) return false;
     for (const k in S.tog) if (S.tog[k] && !TOG[k].f(h)) return false;
     if (q && norm(h.label + ' ' + h.notes + ' ' + titre(h) + ' ' + STATUTS[h.statut] + ' ' + (h.an ? ANNONCES[h.an.statut] : '')).indexOf(q) < 0) return false;
     return true;
@@ -196,6 +198,7 @@ function activeFilters() {
   if (S.pool === 'create') a.push(['pool', 'Piscine à créer']);
   for (const k in S.tog) if (S.tog[k]) a.push(['tog:' + k, TOG[k].l]);
   if (S.statut) a.push(['statut', STATUTS[S.statut]]);
+  if (S.annonce) a.push(['annonce', S.annonce === 'enligne' ? 'Annonces en ligne' : 'Annonce : ' + ANNONCES[S.annonce].toLowerCase()]);
   return a;
 }
 function clearFilter(k) {
@@ -206,12 +209,13 @@ function clearFilter(k) {
   else if (k === 'ch') S.ch = 0;
   else if (k === 'pool') S.pool = 'all';
   else if (k === 'statut') S.statut = '';
+  else if (k === 'annonce') S.annonce = '';
   else if (k.indexOf('tog:') === 0) S.tog[k.slice(4)] = false;
 }
-function resetFilters() { S.q = ''; S.commune = ''; S.pmax = PMAX; S.m2 = 0; S.ch = 0; S.pool = 'all'; S.tog = {}; S.statut = ''; }
+function resetFilters() { S.q = ''; S.commune = ''; S.pmax = PMAX; S.m2 = 0; S.ch = 0; S.pool = 'all'; S.tog = {}; S.statut = ''; S.annonce = ''; }
 function syncForm() {
   $('f-q').value = S.q; $('f-commune').value = S.commune; $('f-pmax').value = S.pmax; $('f-m2').value = S.m2;
-  $('f-ch').value = S.ch; $('f-pool').value = S.pool; $('f-statut').value = S.statut; $('sort').value = S.sort;
+  $('f-ch').value = S.ch; $('f-pool').value = S.pool; $('f-statut').value = S.statut; $('f-annonce').value = S.annonce; $('sort').value = S.sort;
   $('f-pmaxv').textContent = eur(S.pmax);
   document.querySelectorAll('#fform [data-t]').forEach((b) => { b.checked = !!S.tog[b.getAttribute('data-t')]; });
 }
@@ -642,6 +646,7 @@ document.addEventListener('change', (e) => {
   if (t.id === 'f-ch') { S.ch = +t.value; render(); return; }
   if (t.id === 'f-pool') { S.pool = t.value; render(); return; }
   if (t.id === 'f-statut') { S.statut = t.value; render(); return; }
+  if (t.id === 'f-annonce') { S.annonce = t.value; render(); return; }
   if (t.id === 'send-gen') { $('send-txt').value = message(sendList, t.checked); return; }
 });
 document.addEventListener('input', (e) => {
@@ -678,6 +683,8 @@ function init(etat, ann, ver) {
   $('f-commune').innerHTML = '<option value="">Toutes les communes</option>' + Object.keys(counts).sort((a, b) => a.localeCompare(b, 'fr')).map((c) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + counts[c] + ')</option>').join('');
   const used = {}; H.forEach((h) => { used[h.statut] = 1; });
   $('f-statut').innerHTML = '<option value="">Tous les biens</option>' + Object.keys(STATUTS).filter((k) => used[k]).map((k) => '<option value="' + k + '">' + STATUTS[k] + '</option>').join('');
+  const usedA = {}; H.forEach((h) => { if (h.an) usedA[h.an.statut] = 1; });
+  $('f-annonce').innerHTML = '<option value="">Toutes les annonces</option>' + (Object.keys(usedA).some((k) => SORTIE[k]) ? '<option value="enligne">Annonces en ligne seulement</option>' : '') + Object.keys(ANNONCES).filter((k) => usedA[k]).map((k) => '<option value="' + k + '">' + ANNONCES[k] + '</option>').join('');
   $('maj').textContent = dateFr(D.updated);
   const nc = Object.keys(counts).length;
   $('stats').innerHTML = '<li><b>' + H.length + '</b> maisons</li><li><b>' + nc + '</b> communes</li><li>de <b>' + eur(PMIN) + '</b> à <b>' + eur(PMAX) + '</b></li>';
