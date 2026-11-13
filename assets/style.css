@@ -70,7 +70,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none
 .eyebrow{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
 .lead{margin-top:12px;max-width:62ch;color:var(--muted);font-size:1.05rem}
 .lead.small{font-size:1rem;margin-top:8px}
-.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.hero-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
 .stats li{padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.9rem;color:var(--muted)}
 .stats b{color:var(--fg);font-weight:600}
 
@@ -160,7 +161,7 @@ td .statut,.f-meta .statut,.cmpt .statut{box-shadow:none;border:1px solid var(--
 .cprice span{font-size:.8rem;color:var(--muted);white-space:nowrap}
 .cfacts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:.95rem;font-weight:500}
 .cnotes{font-size:.9rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.cact{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:4px}
+.cact{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin-top:auto;padding-top:4px}
 .cmp{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;font-size:.9rem;font-weight:500;cursor:pointer}
 
 /* pastilles */

@@ -75,4 +75,6 @@ Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, case
 3. *Déployer*, *Nouveau déploiement*, type *Application Web* ; exécuter en tant que **moi**, accès **tout le monde** ; autorisez, puis copiez l'adresse qui finit par `/exec`.
 4. Dans `/admin/`, tout en bas (**Réglage des suggestions**) : collez l'adresse, saisissez la phrase secrète (elle reste dans le navigateur), puis **Publier**.
 
+Le bouton **Proposer un bien** (en haut de la page) ouvre une petite fenêtre : nom et prénom, lien de l'annonce, commentaires. Chaque proposition arrive dans `/admin/`, section **Biens à ajouter** : l'administrateur transmet le lien à Claude, qui fait l'analyse complète avant la PR d'ajout au comparateur, puis marque la proposition comme traitée.
+
 Sans formulaire, le bouton d'envoi prépare un e-mail vers l'adresse de contact ; on le colle ensuite dans l'admin (« Coller une suggestion reçue par e-mail »).

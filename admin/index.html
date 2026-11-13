@@ -66,6 +66,12 @@
         <input type="search" id="a-q" placeholder="Rechercher un bien" autocomplete="off">
       </div>
     </div>
+    <section class="a-card" id="a-prop" aria-labelledby="prop-t" hidden>
+      <h2 id="prop-t">Biens à ajouter</h2>
+      <p class="note">Proposés depuis le bouton « Proposer un bien » du site. Transmettez le lien à Claude : l’analyse complète est faite avant l’ajout au comparateur. Marquez ensuite la proposition comme traitée.</p>
+      <ul class="sg-list" id="pg-list"></ul>
+    </section>
+
     <section class="a-card" id="a-sug" aria-labelledby="sug-t">
       <div class="a-head"><h2 id="sug-t">Suggestions des agents</h2><button type="button" class="btn small" id="sug-refresh">Actualiser</button></div>
       <p class="note" id="sug-state"></p>

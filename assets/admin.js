@@ -13,7 +13,7 @@ const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d
    (scripts/verifier_annonces.py), dans ce même fichier. Une correction faite ici n'est jamais écrasée par le robot. */
 const STATUTS = { etude: 'À étudier', questions: 'Questions envoyées', visite: 'Visite à prévoir', vu: 'Visité', compromis: 'Sous compromis', plusdispo: 'Plus disponible', vendue: 'Vendue', retiree: 'Retirée', ecarte: 'Écarté' };
 const KEY = 'suivi.admin.token', SKEY = 'suivi.admin.sugkey';
-const TYPES = { info: 'Information inexacte ou manquante', prix: 'Prix ou conditions modifiés', etat: 'État de l’annonce modifié', visite: 'Visite', reponse: 'Réponse à nos questions', comm: 'Commentaire à afficher' };
+const TYPES = { proposition: 'Bien proposé', info: 'Information inexacte ou manquante', prix: 'Prix ou conditions modifiés', etat: 'État de l’annonce modifié', visite: 'Visite', reponse: 'Réponse à nos questions', comm: 'Commentaire à afficher' };
 const TRAITEES_MAX = 400;
 
 let token = '', sha = '', saved = null, etat = null, busy = false, sugs = [], pasted = [], sugMsg = '';
@@ -135,11 +135,13 @@ function setStatut(n, v) {
 /* ---------- suggestions des agents ---------- */
 const NOMS = {}; D.biens.forEach((h) => { NOMS[h.n] = h.label; });
 function cleanSug(d) {
-  if (!d || typeof d !== 'object' || !/^[\w-]{1,40}$/.test(String(d.id || '')) || !NOMS[d.bien]) return null;
+  if (!d || typeof d !== 'object' || !/^[\w-]{1,40}$/.test(String(d.id || ''))) return null;
+  const prop = (Array.isArray(d.types) ? d.types : String(d.types || '').split(',')).indexOf('proposition') >= 0;
+  if (!prop && !NOMS[d.bien]) return null;
   const txt = (v, m) => String(v == null ? '' : v).slice(0, m);
   const prix = parseInt(d.prix, 10);
   return {
-    id: String(d.id), bien: +d.bien, date: /^\d{4}-\d{2}-\d{2}/.test(String(d.date || '')) ? String(d.date) : '',
+    id: String(d.id), bien: prop ? 0 : +d.bien, date: /^\d{4}-\d{2}-\d{2}/.test(String(d.date || '')) ? String(d.date) : '',
     nom: txt(d.nom, 60), types: (Array.isArray(d.types) ? d.types : String(d.types || '').split(',')).filter((k) => TYPES[k]),
     statut: STATUTS[d.statut] ? d.statut : '', prix: prix >= 50000 && prix <= 3000000 ? prix : 0, texte: txt(d.texte, 600)
   };
@@ -166,12 +168,25 @@ function pending() {
 }
 function drawSug() {
   if (!etat) return;
-  const list = pending();
+  const all = pending(), props = all.filter((x) => !x.bien), list = all.filter((x) => x.bien);
+  $('a-prop').hidden = !props.length;
+  $('prop-t').textContent = 'Biens à ajouter (' + props.length + ')';
+  $('pg-list').innerHTML = props.map(carteSug).join('');
   $('sug-t').textContent = 'Suggestions des agents' + (list.length ? ' (' + list.length + ')' : '');
   $('sug-state').textContent = sugMsg || (list.length ? '' : 'Aucune suggestion en attente.');
   $('sug-state').hidden = !($('sug-state').textContent);
-  $('sg-list').innerHTML = list.map((x) => {
+  $('sg-list').innerHTML = list.map(carteSug).join('');
+}
+function carteSug(x) {
     const e = etat.biens[x.bien] || {};
+    if (!x.bien) {   /* un bien proposé par un agent : le lien est à ouvrir, rien à appliquer automatiquement */
+      const m = /^LIEN\s*:\s*(https?:\/\/\S+)\n?([\s\S]*)$/.exec(x.texte);
+      const dp = x.date ? new Date(x.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '';
+      return '<li class="sg" data-id="' + esc(x.id) + '"><h3>Bien proposé</h3>' +
+        '<p class="sg-meta">' + (x.nom ? 'De ' + esc(x.nom) : 'Sans nom') + (dp ? ' · ' + dp : '') + '</p>' +
+        (m ? '<p><a href="' + esc(m[1]) + '" target="_blank" rel="noopener noreferrer">' + esc(m[1].length > 80 ? m[1].slice(0, 77) + '…' : m[1]) + ' <span aria-hidden="true">↗</span></a></p>' + (m[2].trim() ? '<p class="sg-txt">' + esc(m[2].trim()) + '</p>' : '') : '<p class="sg-txt">' + esc(x.texte) + '</p>') +
+        '<div class="sg-act"><button type="button" class="btn primary small" data-sgdo="oui">Ajouté au comparateur</button><button type="button" class="btn ghost small" data-sgdo="non">Écarter</button></div></li>';
+    }
     const d = x.date ? new Date(x.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '';
     return '<li class="sg" data-id="' + esc(x.id) + '"><h3>' + esc(NOMS[x.bien]) + ' <span class="sg-meta">· réf. ' + x.bien + '</span></h3>' +
       '<p class="sg-meta">' + (x.nom ? 'De ' + esc(x.nom) : 'Sans nom') + (d ? ' · ' + d : '') + '</p>' +
@@ -181,12 +196,11 @@ function drawSug() {
       (x.prix ? '<label class="optline"><input type="checkbox" data-sg="prix" checked><span>Mettre le prix à ' + nf(x.prix) + ' € (actuellement ' + nf(e.prix || (D.biens.filter((h) => h.n === x.bien)[0] || {}).price || 0) + ' €)</span></label>' : '') +
       (x.texte ? '<label class="optline"><input type="checkbox" data-sg="note"><span>Mettre dans la note visible sur la fiche (modifiable) :</span></label><input type="text" class="sg-note" data-sg="notetxt" maxlength="140" value="' + esc(x.texte.slice(0, 140)) + '" aria-label="Texte de la note">' : '') +
       '<div class="sg-act"><button type="button" class="btn primary small" data-sgdo="oui">Traiter</button><button type="button" class="btn ghost small" data-sgdo="non">Écarter</button></div></li>';
-  }).join('');
 }
 function traiter(id, decision, li) {
   const x = pending().filter((y) => y.id === id)[0]; if (!x) return;
   const on = (k) => { const c = li.querySelector('[data-sg="' + k + '"]'); return c && c.checked; };
-  if (decision === 'oui') {
+  if (decision === 'oui' && x.bien) {
     if (x.statut && on('statut') && etat.biens[x.bien].statut !== x.statut) setStatut(x.bien, x.statut);
     const e = etat.biens[x.bien];
     if (x.prix && on('prix')) { e.prix = x.prix; e.maj = today(); }
@@ -213,10 +227,10 @@ $('logout').addEventListener('click', () => {
   token = ''; writeToken('', false); etat = saved = null; showLogin('');
 });
 $('a-q').addEventListener('input', draw);
-$('sg-list').addEventListener('click', (ev) => {
+['sg-list', 'pg-list'].forEach((id) => $(id).addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-sgdo]'), li = ev.target.closest('.sg'); if (!b || !li) return;
   traiter(li.getAttribute('data-id'), b.getAttribute('data-sgdo'), li);
-});
+}));
 $('sug-refresh').addEventListener('click', fetchSug);
 $('sug-add').addEventListener('click', () => {
   const m = /SUGGESTION-SUIVI\s+(\{[^\n]*\})/.exec($('sug-text').value);
