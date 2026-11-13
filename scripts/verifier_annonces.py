@@ -464,10 +464,17 @@ def diagnostiquer(refs, annonces):
         print('::endgroup::')
 
 
+def surveillee(url):
+    """Seules les annonces Bien'ici sont lues par le robot : une annonce d'un autre site (leboncoin, par exemple)
+    serait sinon vue comme « retirée » à tort. Elles restent dans le comparateur, sans suivi automatique."""
+    hote = (urllib.parse.urlparse(url).hostname or '').lower()
+    return hote == 'bienici.com' or hote.endswith('.bienici.com')
+
+
 def lire_annonces():
     brut = DATA_JS.read_text(encoding='utf-8')
     d = json.loads(brut[brut.index('=') + 1:].strip().rstrip(';'))
-    return [(b['n'], b['label'], b['url'], b['price']) for b in d['biens']]
+    return [(b['n'], b['label'], b['url'], b['price']) for b in d['biens'] if surveillee(b['url'])]
 
 
 def lire_json(chemin, defaut):

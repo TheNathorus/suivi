@@ -33,7 +33,7 @@ Les pages portent une balise `noindex`. Les photos appartiennent aux agences et 
 
 **Un seul système de statuts.** La page `/admin/` pilote le site public : tout ce qui change passe par `data/etat.json` (la base de l'administration) et le site public ne fait que le lire. Le robot du matin écrit donc dans cette même base, exactement comme l'administrateur.
 
-Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce de `assets/data.js` et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
+Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce Bien'ici de `assets/data.js` (les annonces d'un autre site, comme leboncoin, restent au comparateur mais ne sont pas lues : leur statut se règle à la main dans l'admin) et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
 
 | Statut de suivi posé par le robot | Quand |
 | --- | --- |
