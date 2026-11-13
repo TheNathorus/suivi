@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-11",
+ "maj": "2026-11-13",
  "contact": {
   "email": "n.becheroy@gmail.com",
   "tel": ""
@@ -109,9 +109,12 @@
   },
   "18": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "plusdispo",
+   "maj": "2026-11-13",
+   "note": "",
+   "avant": "etude",
+   "auto": true,
+   "vu": "indisponible"
   },
   "19": {
    "visible": true,
