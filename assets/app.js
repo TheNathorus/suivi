@@ -136,7 +136,8 @@ function annonceDetail(h) {
   else if (a.verifie) t.push('vérifiée le ' + dateC(a.verifie));
   return t.filter((x) => x && x !== 'depuis le ').join(' · ');
 }
-const annonceLine = (h) => h.an ? '<p class="annonce-l a-' + h.an.statut + '">' + annonceBadge(h) + '<span class="muted">' + esc(annonceDetail(h)) + '</span></p>' : '';
+/* sansBadge : sur la carte d'un bien sorti, la pastille est déjà en haut de la photo. */
+const annonceLine = (h, sansBadge) => h.an ? '<p class="annonce-l a-' + h.an.statut + '">' + (sansBadge ? '' : annonceBadge(h)) + '<span class="muted">' + esc(annonceDetail(h)) + '</span></p>' : '';
 const prixAncien = (h) => h.an && h.an.statut === 'prix' && h.an.ancien ? '<s class="old">' + eur(h.an.ancien) + '</s>' : '';
 function annonceBloc(h) {
   if (!h.an) return '';
@@ -232,13 +233,13 @@ function card(h, idx) {
       '<button type="button" class="car-nav prev" data-car="-1" aria-label="Photo précédente" hidden>‹</button>' +
       '<button type="button" class="car-nav next" data-car="1" aria-label="Photo suivante">›</button>' +
       '<span class="car-dots" aria-hidden="true">' + dots + '</span>' +
-      '<span class="car-top">' + statutBadge(h) + '<span class="pill" title="Score sur 100 selon nos critères"><b>' + h.score + '</b>/100</span></span>' +
+      '<span class="car-top">' + (sorti(h) ? annonceBadge(h) : statutBadge(h)) + '<span class="pill" title="Score sur 100 selon nos critères"><b>' + h.score + '</b>/100</span></span>' +
     '</div>' +
     '<div class="cbody">' +
       '<div class="chead"><div><h3><a href="#bien-' + h.n + '" tabindex="-1">' + esc(h.label) + '</a></h3><p class="ctype">' + titre(h) + ' · réf. ' + h.n + '</p></div>' +
       '<div class="cprice">' + prixAncien(h) + '<b>' + eur(h.price) + '</b><span>' + nf(h.ppm) + NBSP + '€/m²</span></div></div>' +
       '<p class="cfacts"><span>' + h.m2 + NBSP + 'm²</span><span>' + h.ch + NBSP + 'ch.</span><span>Terrain ' + nf(h.land) + NBSP + 'm²</span>' + dpeBadge(h.dpe) + '</p>' +
-      annonceLine(h) + cardChips(h) +
+      annonceLine(h, sorti(h)) + cardChips(h) +
       '<p class="cnotes">' + esc(h.notes) + '</p>' +
       '<div class="cact"><a class="btn primary small" href="#bien-' + h.n + '">Voir la fiche</a>' +
       '<label class="cmp"><input type="checkbox" data-cmp="' + h.n + '"' + (sel ? ' checked' : '') + '><span>Comparer</span></label></div>' +
