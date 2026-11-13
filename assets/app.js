@@ -403,11 +403,11 @@ function message(hs, withGeneral) {
 }
 
 /* ---------- dialogues ---------- */
-const dF = $('dlg-fiche'), dC = $('dlg-cmp'), dS = $('dlg-send'), dB = $('dlg-box');
+const dF = $('dlg-fiche'), dC = $('dlg-cmp'), dS = $('dlg-send'), dB = $('dlg-box'), dP = $('dlg-prop');
 function show(d) { if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute('open', ''); } } d.scrollTop = 0; document.body.classList.add('modal'); }
 /* fermeture décidée par le code : ne doit pas modifier l'adresse */
 function hide(d) { if (d.open) { d._prog = true; try { d.close(); } catch (e) { d.removeAttribute('open'); d._prog = false; } } }
-[dF, dC, dS, dB].forEach((d) => {
+[dF, dC, dS, dB, dP].forEach((d) => {
   d.addEventListener('close', () => { if (!document.querySelector('dialog[open]')) document.body.classList.remove('modal'); });
   d.addEventListener('click', (e) => { if (e.target === d) closeDialog(d); });
 });
@@ -419,7 +419,7 @@ function leave() {
   else { history.replaceState(null, '', location.pathname + location.search); route(); }
 }
 function closeDialog(d) { if ((d === dF || d === dC) && onRoute()) leave(); else hide(d); }
-[dF, dC, dS, dB].forEach((d) => d.addEventListener('close', () => { const prog = d._prog; d._prog = false; if (!prog && (d === dF || d === dC) && onRoute()) leave(); }));
+[dF, dC, dS, dB, dP].forEach((d) => d.addEventListener('close', () => { const prog = d._prog; d._prog = false; if (!prog && (d === dF || d === dC) && onRoute()) leave(); }));
 function go(hash) { if (location.hash === hash) { route(); return; } if (!onRoute()) pushed = true; else { location.replace(hash); return; } location.hash = hash; }
 function route() {
   const b = /^#bien-(\d+)$/.exec(location.hash), c = /^#comparer=([\d,]+)$/.exec(location.hash);
@@ -548,6 +548,42 @@ function sendSuggestion(form) {
   msg.textContent = 'Votre messagerie s’ouvre : envoyez le message préparé.';
   location.href = 'mailto:' + CONTACT.email + '?subject=' + encodeURIComponent('Suggestion : ' + d.label + ' (réf. ' + n + ')') + '&body=' + encodeURIComponent(corps);
 }
+/* Proposer un bien : une petite fenêtre (nom, lien de l'annonce, commentaires), transmise comme une suggestion. */
+function proposer() {
+  dP.innerHTML = '<header class="dh"><h2 id="prop-t">Proposer un bien</h2><button type="button" class="btn ghost small x" data-close aria-label="Fermer">✕</button></header>' +
+    '<form class="db sug-form" data-prop novalidate>' +
+      '<p class="note">Vous avez repéré une maison qui pourrait nous intéresser ? Indiquez le lien de l’annonce : l’administrateur l’étudie.</p>' +
+      '<label class="fld"><span>Nom et prénom</span><input type="text" name="nom" maxlength="60" autocomplete="name" required></label>' +
+      '<label class="fld"><span>Lien de la page du bien</span><input type="url" name="lien" maxlength="300" inputmode="url" autocomplete="off" placeholder="https://…" required></label>' +
+      '<label class="fld"><span>Commentaires (facultatif)</span><textarea name="texte" rows="4" maxlength="250" placeholder="Ex. : prix négociable, visite possible cette semaine."></textarea></label>' +
+      '<input type="text" name="piege" class="vh" tabindex="-1" autocomplete="off" aria-hidden="true">' +
+      '<button type="submit" class="btn primary">Envoyer la proposition</button><p class="sug-msg" role="status" aria-live="polite"></p></form>';
+  show(dP);
+  const f = dP.querySelector('input[name=nom]'); if (f) f.focus({ preventScroll: true });
+}
+function sendProposal(form) {
+  const f = form.elements, msg = form.querySelector('.sug-msg');
+  const nom = f.nom.value.trim().slice(0, 60), lien = f.lien.value.trim(), texte = f.texte.value.trim().slice(0, 250);
+  if (nom.length < 2) { msg.textContent = 'Indiquez votre nom et prénom.'; f.nom.focus(); return; }
+  if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(lien)) { msg.textContent = 'Le lien doit commencer par https:// et pointer vers la page du bien.'; f.lien.focus(); return; }
+  const d = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: new Date().toISOString(),
+    bien: 0, label: 'Proposition de bien', nom, types: ['proposition'], statut: '', prix: 0,
+    texte: ('LIEN : ' + lien + (texte ? '\n' + texte : '')).slice(0, 590), piege: f.piege.value
+  };
+  const btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+  const fini = () => { form.reset(); msg.textContent = 'Merci, la proposition est transmise.'; };
+  if (SUG_URL) {
+    msg.textContent = 'Envoi…';
+    fetch(SUG_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(d) })
+      .then(fini).catch(() => { msg.textContent = 'L’envoi a échoué. Réessayez dans un instant.'; }).then(() => { btn.disabled = false; });
+    return;
+  }
+  btn.disabled = false;
+  msg.textContent = 'Votre messagerie s’ouvre : envoyez le message préparé.';
+  location.href = 'mailto:' + CONTACT.email + '?subject=' + encodeURIComponent('Proposition de bien') + '&body=' +
+    encodeURIComponent('Proposition de bien\nDe : ' + nom + '\nLien : ' + lien + (texte ? '\n\n' + texte : '') + '\n\n--\nSUGGESTION-SUIVI ' + JSON.stringify({ id: d.id, date: d.date, bien: 0, label: d.label, nom, types: d.types, statut: '', prix: 0, texte: d.texte }));
+}
 function galSet(k) {
   if (!cur) return;
   gi = (k + cur.nph) % cur.nph;
@@ -651,6 +687,7 @@ document.addEventListener('click', (e) => {
   const has = (a) => t.hasAttribute(a), val = (a) => t.getAttribute(a);
   if (has('data-replace')) { e.preventDefault(); location.replace(val('href')); return; }
   if (has('data-close-go')) { e.preventDefault(); history.replaceState(null, '', '#questions'); pushed = false; route(); $('questions').scrollIntoView(); return; }
+  if (t.id === 'prop-open') { proposer(); return; }
   if (has('data-sug-open')) { e.preventDefault(); S.openSug = true; go(val('href')); return; }
   if (t.tagName === 'A' && /^#bien-\d+$/.test(val('href') || '')) { e.preventDefault(); go(val('href')); return; }
   if (has('data-close')) { closeDialog(t.closest('dialog')); return; }
@@ -688,7 +725,10 @@ document.addEventListener('click', (e) => {
   if (t.id === 'f-close' || t.id === 'f-apply') { closeFilters(); if (t.id === 'f-apply') $('resultats').scrollIntoView(); return; }
 });
 scrim.addEventListener('click', closeFilters);
-document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-sug]'); if (f) { e.preventDefault(); sendSuggestion(f); } });
+document.addEventListener('submit', (e) => {
+  const f = e.target.closest('form[data-sug]'); if (f) { e.preventDefault(); sendSuggestion(f); return; }
+  const p = e.target.closest('form[data-prop]'); if (p) { e.preventDefault(); sendProposal(p); }
+});
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.hasAttribute('data-cmp')) {
@@ -745,6 +785,7 @@ function init(etat, ann, ver) {
   $('stats').innerHTML = '<li><b>' + H.length + '</b> maisons</li><li><b>' + nc + '</b> communes</li><li>de <b>' + eur(PMIN) + '</b> à <b>' + eur(PMAX) + '</b></li>';
   $('weights').innerHTML = D.weights.map((w) => '<li><span>' + esc(w[0]) + '</span><b>' + w[1] + '</b><i style="width:' + (w[1] * 4) + '%"></i></li>').join('');
   $('general').innerHTML = D.general.map((x) => '<li>' + esc(x) + '</li>').join('');
+  $('prop-open').hidden = !(SUG_URL || CONTACT.email);
   const c = $('contact'), ch = contactHref(null);
   if (ch) { c.href = ch; c.hidden = false; }
   syncForm(); render(); route();

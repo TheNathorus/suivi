@@ -48,7 +48,10 @@
     <p class="eyebrow">Recherche en cours · mise à jour du <span id="maj"></span></p>
     <h1>Notre sélection de maisons autour de Nîmes</h1>
     <p class="lead">Chaque bien est noté selon nos critères. Vous y trouvez les photos, l’annonce d’origine, les points à vérifier et les questions à poser avant une visite.</p>
-    <ul class="stats" id="stats" aria-label="La sélection en chiffres"></ul>
+    <div class="hero-row">
+      <ul class="stats" id="stats" aria-label="La sélection en chiffres"></ul>
+      <button type="button" class="btn primary" id="prop-open" hidden aria-haspopup="dialog">Proposer un bien</button>
+    </div>
   </div>
 </section>
 
@@ -217,6 +220,7 @@
 <dialog id="dlg-fiche" class="dlg fiche" aria-labelledby="fiche-t"></dialog>
 <dialog id="dlg-cmp" class="dlg wide" aria-labelledby="cmp-t"></dialog>
 <dialog id="dlg-send" class="dlg narrow" aria-labelledby="send-t"></dialog>
+<dialog id="dlg-prop" class="dlg narrow" aria-labelledby="prop-t"></dialog>
 <dialog id="dlg-box" class="box" aria-label="Photo en plein écran"></dialog>
 <div id="print" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" hidden></div>
