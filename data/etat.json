@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-13",
+ "maj": "2026-11-14",
  "contact": {
   "email": "n.becheroy@gmail.com",
   "tel": ""
@@ -73,9 +73,9 @@
   },
   "12": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "ecarte",
+   "maj": "2026-11-14",
+   "note": "Zone à risque d'après Yoann. Voisinage et quartier sensible."
   },
   "13": {
    "visible": true,
@@ -91,9 +91,9 @@
   },
   "15": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "ecarte",
+   "maj": "2026-11-14",
+   "note": "Zone à risque d'après Yoann. Voisinage et quartier sensible."
   },
   "16": {
    "visible": true,
