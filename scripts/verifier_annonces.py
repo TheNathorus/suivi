@@ -33,6 +33,8 @@ DATA_JS = ROOT / 'assets' / 'data.js'
 ANNONCES = ROOT / 'data' / 'annonces.json'
 VERIF = ROOT / 'data' / 'verification.json'
 ETAT = ROOT / 'data' / 'etat.json'
+JUMELLES = ROOT / 'data' / 'jumelles.json'
+PREFIXE_JUMELLES = 'jumelles:'
 
 UA = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/124.0 Safari/537.36')
@@ -85,6 +87,8 @@ def http_get(url, accept):
 
 # ---------------------------------------------------------------- lecture d'une annonce
 def ad_id(url):
+    if url.startswith(PREFIXE_JUMELLES):
+        return url[len(PREFIXE_JUMELLES):].split(',')[0]
     return url.rstrip('/').rsplit('/', 1)[-1]
 
 
@@ -234,8 +238,25 @@ def raison_page(url):
     return None
 
 
+def observer_jumelles(ids):
+    """Annonce d'un autre site (leboncoin) suivie par ses copies sur Bien'ici : elle est en ligne tant qu'une copie
+    l'est, et disparue quand toutes le sont. Seule l'API est lue (aucune page), un échec ne conclut jamais."""
+    lectures = []
+    for i in ids:
+        r = lire_api('https://www.bienici.com/annonce/vente/jumelle/' + i)
+        lectures.append(r if r is not None else (BLOCKED, {}))
+    for r in lectures:
+        if r[0] == 'ok':
+            return r
+    if any(r[0] == BLOCKED for r in lectures):
+        return BLOCKED, {}
+    return lectures[0] if lectures else (BLOCKED, {})
+
+
 def observer(url):
     """('ok', {prix, drapeau}) | ('gone', {}) | ('blocked', {})"""
+    if url.startswith(PREFIXE_JUMELLES):
+        return observer_jumelles([i for i in url[len(PREFIXE_JUMELLES):].split(',') if i])
     r = lire_api(url)
     if r is not None and r[0] == 'ok':
         # L'API peut encore renvoyer une fiche pour une annonce retirée : la page a le dernier mot.
@@ -471,10 +492,17 @@ def surveillee(url):
     return hote == 'bienici.com' or hote.endswith('.bienici.com')
 
 
-def lire_annonces():
+def lire_annonces(jumelles=None):
+    """Annonces à lire : celles de Bien'ici, et celles d'un autre site dont on connaît une copie sur Bien'ici."""
     brut = DATA_JS.read_text(encoding='utf-8')
     d = json.loads(brut[brut.index('=') + 1:].strip().rstrip(';'))
-    return [(b['n'], b['label'], b['url'], b['price']) for b in d['biens'] if surveillee(b['url'])]
+    out = []
+    for b in d['biens']:
+        if surveillee(b['url']):
+            out.append((b['n'], b['label'], b['url'], b['price']))
+        elif (jumelles or {}).get(str(b['n'])):
+            out.append((b['n'], b['label'], PREFIXE_JUMELLES + ','.join(jumelles[str(b['n'])]), b['price']))
+    return out
 
 
 def lire_json(chemin, defaut):
@@ -513,7 +541,16 @@ def message_commit(changements, premiere, alertes, aujourdhui, total, suivi=()):
 
 def main():
     aujourdhui = datetime.now(ZoneInfo('Europe/Paris')).date()
-    annonces = lire_annonces()
+    import jumelles as jum_
+    jum = lire_json(JUMELLES, {})
+    jum = jum if isinstance(jum, dict) else {}
+    nouvelles = jum_.decouvrir(jum)
+    for n, ids in nouvelles.items():
+        if ids != jum.get(n):
+            print(f'Réf. {n} : suivie par {len(ids)} copie(s) sur Bien\'ici.')
+    if nouvelles != jum:
+        ecrire(JUMELLES, dict(sorted(nouvelles.items(), key=lambda kv: int(kv[0]))))
+    annonces = lire_annonces(nouvelles)
     prec = lire_json(ANNONCES, {})
     prec_annonces = prec.get('biens', {}) if isinstance(prec, dict) else {}
     prec_verif = (lire_json(VERIF, {}) or {}).get('biens', {})

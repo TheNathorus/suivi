@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verifier_annonces as v  # noqa: E402
 import annuler_annonces as an  # noqa: E402
+import jumelles as jm  # noqa: E402
 
 J1, J2, J3 = date(2026, 11, 14), date(2026, 11, 15), date(2026, 12, 5)
 OK = lambda prix=300000, drapeau=None: ('ok', {'prix': prix, 'drapeau': drapeau})  # noqa: E731
@@ -336,6 +337,66 @@ class Lecture(unittest.TestCase):
     def test_page_sans_conclusion(self):
         self.fake({'realEstateAd.json': (429, {}, ''), 'annonce/vente': (200, {}, '<html><body>appli</body></html>')})
         self.assertEqual(v.observer('https://x/annonce/vente/a/id-1'), (v.BLOCKED, {}))
+
+
+class Jumelles(unittest.TestCase):
+    def setUp(self):
+        self.api, self.json = v.lire_api, jm.json_get
+
+    def tearDown(self):
+        v.lire_api, jm.json_get = self.api, self.json
+
+    def api_fake(self, table):
+        v.lire_api = lambda url: table.get(url.rsplit('/', 1)[-1])
+
+    def test_en_ligne_tant_qu_une_copie_l_est(self):
+        self.api_fake({'a': (v.GONE, {'statut': 'indisponible'}), 'b': ('ok', {'prix': 379000, 'drapeau': None})})
+        self.assertEqual(v.observer('jumelles:a,b'), ('ok', {'prix': 379000, 'drapeau': None}))
+
+    def test_disparue_quand_toutes_les_copies_le_sont(self):
+        self.api_fake({'a': (v.GONE, {'statut': 'indisponible'}), 'b': (v.GONE, {'statut': 'retiree'})})
+        self.assertEqual(v.observer('jumelles:a,b')[0], v.GONE)
+
+    def test_lecture_impossible_ne_conclut_jamais(self):
+        self.api_fake({'a': (v.GONE, {'statut': 'indisponible'})})      # b : pas de réponse
+        self.assertEqual(v.observer('jumelles:a,b'), (v.BLOCKED, {}))
+        self.assertEqual(v.observer('jumelles:'), (v.BLOCKED, {}))
+
+    def test_annonces_lues_avec_et_sans_jumelle(self):
+        sans = v.lire_annonces({})
+        avec = v.lire_annonces({'20': ['x1', 'x2'], '21': ['y1']})
+        self.assertEqual(len(avec), len(sans) + 2)
+        extra = {n: url for n, _, url, _ in avec if url.startswith(v.PREFIXE_JUMELLES)}
+        self.assertEqual(extra, {20: 'jumelles:x1,x2', 21: 'jumelles:y1'})
+        self.assertEqual(v.ad_id('jumelles:x1,x2'), 'x1')
+
+    def test_recherche_stricte(self):
+        b = {'n': 20, 'commune': 'Cabrières', 'price': 399000, 'm2': 153, 'land': 1244}
+        annonces = [
+            {'id': 'proche', 'price': 399000, 'surfaceArea': 154, 'landSurfaceArea': 1244},
+            {'id': 'prixlegerementbaisse', 'price': 389000, 'surfaceArea': 153, 'landSurfaceArea': 1244},
+            {'id': 'autre-terrain', 'price': 399000, 'surfaceArea': 153, 'landSurfaceArea': 800},
+            {'id': 'sans-terrain', 'price': 399000, 'surfaceArea': 153},
+            {'id': 'autre-prix', 'price': 450000, 'surfaceArea': 153, 'landSurfaceArea': 1244},
+            {'id': 'autre-surface', 'price': 399000, 'surfaceArea': 190, 'landSurfaceArea': 1244}]
+
+        def fake(url):
+            if 'suggest.json' in url:
+                return 200, [{'name': 'Cabrières', 'type': 'city', 'zoneIds': ['-123']}]
+            return 200, {'realEstateAds': annonces, 'total': len(annonces)}
+        jm.json_get = fake
+        self.assertEqual(jm.trouver(b), ['prixlegerementbaisse', 'proche'])
+        jm.json_get = lambda url: (0, None)
+        self.assertEqual(jm.trouver(b), [])
+
+    def test_decouverte_ne_retire_jamais_une_copie(self):
+        jm.trouver = lambda b: ['nouvelle'] if b['n'] == 20 else []
+        try:
+            res = jm.decouvrir({'20': ['ancienne'], '21': ['seule']}, pause=0)
+        finally:
+            import importlib
+            importlib.reload(jm)
+        self.assertEqual(res, {'20': ['ancienne', 'nouvelle'], '21': ['seule']})
 
 
 if __name__ == '__main__':

@@ -33,7 +33,7 @@ Les pages portent une balise `noindex`. Les photos appartiennent aux agences et 
 
 **Un seul système de statuts.** La page `/admin/` pilote le site public : tout ce qui change passe par `data/etat.json` (la base de l'administration) et le site public ne fait que le lire. Le robot du matin écrit donc dans cette même base, exactement comme l'administrateur.
 
-Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce Bien'ici de `assets/data.js` (les annonces d'un autre site, comme leboncoin, restent au comparateur mais ne sont pas lues : leur statut se règle à la main dans l'admin) et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
+Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce Bien'ici de `assets/data.js` (les annonces d'un autre site, comme leboncoin, sont suivies par leur copie sur Bien'ici : voir plus bas) et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
 
 | Statut de suivi posé par le robot | Quand |
 | --- | --- |
@@ -59,6 +59,8 @@ Règles de prudence :
 - **Annuler une mise à jour** : GitHub, onglet *Actions*, workflow **Annuler une mise à jour des annonces**, *Run workflow*. Sans autre précision, il remet le suivi des biens changés par la dernière mise à jour automatique, sauf ceux que l'administrateur a modifiés depuis. On peut aussi donner le numéro d'un commit précis. L'annulation est un nouveau commit : rien n'est effacé.
 - **Mettre en pause** : onglet *Actions*, **Vérifier les annonces**, menu « … », *Disable workflow*.
 - **Lancer une vérification maintenant** : même workflow, *Run workflow*. Le champ facultatif « diagnostic » (ex. `18`) détaille dans le journal ce que le site renvoie pour cette réf., sans adresse.
+
+**Annonces d'un autre site (leboncoin).** Le robot ne lit jamais leboncoin (pas d'accès officiel, règles du site, protection anti-robot). Les annonces d'agence de leboncoin viennent des logiciels des agences, qui les publient aussi sur Bien'ici. Chaque matin, le robot cherche donc sur Bien'ici les copies de chaque bien dont le lien n'est pas Bien'ici (même commune, même prix à 3 % près, même terrain, surface à 4 m² près), les mémorise dans `data/jumelles.json` et lit leur état comme d'habitude. Le bien est « en ligne » tant qu'**une** copie l'est, et passe à *Plus disponible* quand **toutes** ont disparu ; une lecture impossible ne conclut jamais. Limites : une annonce de particulier (sans copie) n'est pas suivie, et une agence qui retire sa copie de Bien'ici alors que l'annonce leboncoin reste en ligne ferait passer le bien à tort à *Plus disponible* (à corriger dans l'admin, champ « Suivi »). Pour voir les copies trouvées : workflow **Chercher les jumelles Bien'ici** (Run workflow).
 
 Le **prix** suit la même règle : le robot écrit dans la base le prix lu dans l'annonce quand il change (champ « Prix » de l'admin), et un prix saisi dans l'admin n'est jamais écrasé tant que l'annonce ne change pas.
 
