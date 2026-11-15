@@ -232,6 +232,30 @@
    "depuis": "2026-11-13",
    "prix": 355000,
    "statut": "disponible"
+  },
+  "20": {
+   "hist": [
+    {
+     "d": "2026-11-15",
+     "s": "disponible",
+     "p": 399000
+    }
+   ],
+   "depuis": "2026-11-15",
+   "prix": 399000,
+   "statut": "disponible"
+  },
+  "21": {
+   "hist": [
+    {
+     "d": "2026-11-15",
+     "s": "disponible",
+     "p": 379000
+    }
+   ],
+   "depuis": "2026-11-15",
+   "prix": 379000,
+   "statut": "disponible"
   }
  }
 }
