@@ -1,0 +1,24 @@
+name: Chercher les jumelles Bien'ici
+
+# Diagnostic : cherche sur Bien'ici la jumelle des annonces publiées ailleurs. N'écrit rien.
+on:
+  push:
+    branches: [claude/jumelles-bienici]
+  workflow_dispatch:
+    inputs:
+      controle:
+        description: "Réf. d'une annonce Bien'ici à rechercher comme test (ex. 13)"
+        required: false
+        default: '13'
+
+permissions:
+  contents: read
+
+jobs:
+  jumelles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chercher
+        run: python3 scripts/jumelles.py "${{ inputs.controle || '13' }}"
