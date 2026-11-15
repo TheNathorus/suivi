@@ -33,7 +33,7 @@ Les pages portent une balise `noindex`. Les photos appartiennent aux agences et 
 
 **Un seul système de statuts.** La page `/admin/` pilote le site public : tout ce qui change passe par `data/etat.json` (la base de l'administration) et le site public ne fait que le lire. Le robot du matin écrit donc dans cette même base, exactement comme l'administrateur.
 
-Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce de `assets/data.js` et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
+Chaque matin vers 7 h (heure de Paris), le workflow **Vérifier les annonces** (`.github/workflows/annonces.yml`) lance `scripts/verifier_annonces.py`. Le script ouvre chaque annonce Bien'ici de `assets/data.js` (les annonces d'un autre site, comme leboncoin, restent au comparateur mais ne sont pas lues : leur statut se règle à la main dans l'admin) et, si ce qu'il lit change, pose un statut de suivi dans `data/etat.json` :
 
 | Statut de suivi posé par le robot | Quand |
 | --- | --- |
@@ -66,7 +66,9 @@ Tests : `python3 scripts/test_verifier_annonces.py` (sans réseau).
 
 ## Suggestions des agents
 
-Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, cases à cocher, statut proposé, nouveau prix, texte). L'envoi arrive dans la page `/admin/`, section **Suggestions des agents** : pour chaque suggestion, des cases à cocher (passer le suivi à…, mettre le prix à…, mettre le texte dans la note) puis **Traiter** ou **Écarter**. Rien n'est publié tant que l'administrateur n'a pas cliqué sur **Publier** ; les suggestions traitées sont mémorisées dans `data/etat.json` (`suggestions.traitees`).
+Chaque carte a un bouton **Suggérer**, et chaque fiche un formulaire (nom, cases à cocher, statut proposé, nouveau prix, texte). L'envoi arrive dans la page `/admin/`, section **Suggestions des agents** : pour chaque suggestion, des cases à cocher (passer le suivi à…, mettre le prix à…, mettre le texte dans la note) puis **Traiter** ou **Écarter**. Dès qu'on clique sur **Traiter**, **Écarter** ou **Ajouté au comparateur**, la suggestion est marquée **traitée dans le Google Sheet** (colonnes `traite` et `traite_le`) : elle ne revient plus, même après « Actualiser » ou un rechargement, sans avoir besoin de **Publier**. Seuls les changements du site (suivi, prix, note) se publient avec **Publier**. Si le script n'est pas à jour, l'admin le signale et mémorise le traitement dans `data/etat.json` (`suggestions.traitees`, à publier).
+
+**Mettre à jour le script déjà déployé** : collez le nouveau `docs/suggestions-google-apps-script.gs`, remettez votre `CLE`, enregistrez, puis *Déployer*, *Gérer les déploiements*, crayon, *Version* : **Nouvelle version**, *Déployer*. L'adresse `/exec` ne change pas.
 
 **Activer le formulaire (une fois, 5 minutes, gratuit)**
 
