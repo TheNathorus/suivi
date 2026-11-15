@@ -2,8 +2,6 @@ name: Chercher les jumelles Bien'ici
 
 # Diagnostic : cherche sur Bien'ici la jumelle des annonces publiées ailleurs. N'écrit rien.
 on:
-  push:
-    branches: [claude/jumelles-bienici]
   workflow_dispatch:
     inputs:
       controle:

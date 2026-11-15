@@ -94,6 +94,56 @@ def proches(b, ads):
     return sorted(res, key=lambda x: not x[0])
 
 
+def trouver(b):
+    """Références Bien'ici des copies de l'annonce b (même commune, même prix à 3 % près, même terrain,
+    surface à 4 m² près), la plus proche d'abord. Liste vide en cas de doute ou de panne."""
+    zs = zones_silencieux(b['commune'])
+    if not zs:
+        return []
+    filtres = {'size': 100, 'from': 0, 'showAllModels': False, 'filterType': 'buy', 'propertyType': ['house'],
+               'page': 1, 'sortBy': 'relevance', 'sortOrder': 'desc', 'onTheMarket': [True],
+               'minPrice': int(b['price'] * (1 - PRIX_TOL)), 'maxPrice': int(b['price'] * (1 + PRIX_TOL)),
+               'zoneIdsByTypes': {'zoneIds': zs}}
+    code, j = json_get('https://www.bienici.com/realEstateAds.json?filters=' +
+                       urllib.parse.quote(json.dumps(filtres, separators=(',', ':'))))
+    ads = j.get('realEstateAds') if isinstance(j, dict) else None
+    if not isinstance(ads, list):
+        return []
+    sures = []
+    for ok_terrain, a in proches(b, ads):
+        t = champ(a, 'landSurfaceArea', 'landSurface')
+        if ok_terrain and t is not None and isinstance(a.get('id'), str):
+            sures.append((abs(champ(a, 'surfaceArea') - b['m2']), abs(a['price'] - b['price']), a['id']))
+    return [i for _, _, i in sorted(sures)]
+
+
+def zones_silencieux(commune):
+    code, j = json_get('https://res.bienici.com/suggest.json?q=' + urllib.parse.quote(commune))
+    out = []
+    for s in (j if isinstance(j, list) else [])[:5]:
+        if isinstance(s, dict):
+            ids = s.get('zoneIds') or s.get('zone_ids') or []
+            if isinstance(ids, list) and ids and s.get('type') in (None, 'city', 'locality', 'commune'):
+                out.append(ids[0])
+    return out[:1]
+
+
+def decouvrir(existant, pause=v.PAUSE_ENTRE):
+    """Met à jour la table {réf. : [références Bien'ici]} : ajoute les copies trouvées, n'en retire jamais
+    (une copie disparue reste suivie : c'est ce qui permet de voir que l'annonce n'est plus en ligne)."""
+    import time
+    nouveau = {k: list(x) for k, x in existant.items()}
+    for b in biens_a_chercher():
+        time.sleep(pause)
+        trouvees = trouver(b)
+        if not trouvees:
+            continue
+        cle = str(b['n'])
+        actuel = nouveau.get(cle, [])
+        nouveau[cle] = actuel + [i for i in trouvees if i not in actuel]
+    return nouveau
+
+
 def main():
     controle = set(re.split(r'[,\s]+', sys.argv[1])) if len(sys.argv) > 1 else set()
     for b in biens_a_chercher(controle):
