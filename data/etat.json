@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-14",
+ "maj": "2026-11-19",
  "contact": {
   "email": "n.becheroy@gmail.com",
   "tel": ""
@@ -49,9 +49,9 @@
   },
   "8": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "questions",
+   "maj": "2026-11-19",
+   "note": "Agent contacté le 18/11."
   },
   "9": {
    "visible": true,
@@ -62,14 +62,14 @@
   "10": {
    "visible": true,
    "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "maj": "2026-11-19",
+   "note": "À contacter le 19/11."
   },
   "11": {
    "visible": true,
    "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "maj": "2026-11-19",
+   "note": "Située à Nîmes, mieux placée, travaux à prévoir. Conservée pour l'instant."
   },
   "12": {
    "visible": true,
@@ -80,14 +80,14 @@
   "13": {
    "visible": true,
    "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "maj": "2026-11-19",
+   "note": "À contacter le 19/11."
   },
   "14": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "ecarte",
+   "maj": "2026-11-19",
+   "note": "Sous compromis (18/11) : écartée."
   },
   "15": {
    "visible": true,
@@ -97,9 +97,9 @@
   },
   "16": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-10",
-   "note": ""
+   "statut": "questions",
+   "maj": "2026-11-19",
+   "note": "Retour de l'agent attendu. Visite possible samedi 28/11."
   },
   "17": {
    "visible": true,
@@ -124,15 +124,21 @@
   },
   "20": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-13",
-   "note": ""
+   "statut": "visite",
+   "maj": "2026-11-19",
+   "note": "Visite envisagée vendredi 27/11 à 14 h 30. Prix ferme selon l'agent. Taxe foncière 2 109 €. 3 clims, tout-à-l'égout."
   },
   "21": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-13",
-   "note": ""
+   "statut": "questions",
+   "maj": "2026-11-19",
+   "note": "Retour de l'agent attendu. Visite possible samedi 28/11."
+  },
+  "22": {
+   "visible": true,
+   "statut": "visite",
+   "maj": "2026-11-19",
+   "note": "Visite envisagée vendredi 27/11 à 16 h. Entièrement climatisée, tout-à-l'égout (agent, 18/11). Diagnostics attendus le 19/11."
   }
  },
  "suggestions": {
