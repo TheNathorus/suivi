@@ -139,6 +139,12 @@
    "statut": "visite",
    "maj": "2026-11-19",
    "note": "Visite envisagée vendredi 27/11 à 16 h. Entièrement climatisée, tout-à-l'égout (agent, 18/11). Diagnostics attendus le 19/11."
+  },
+  "23": {
+   "visible": true,
+   "statut": "etude",
+   "maj": "2026-11-19",
+   "note": "L'agent a filmé les abords le 19/11 (autoroute, mur anti-bruit). Bruit à vérifier sur place."
   }
  },
  "suggestions": {
