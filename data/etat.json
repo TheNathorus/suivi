@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-19",
+ "maj": "2026-11-20",
  "contact": {
   "email": "n.becheroy@gmail.com",
   "tel": ""
@@ -49,9 +49,9 @@
   },
   "8": {
    "visible": true,
-   "statut": "questions",
-   "maj": "2026-11-19",
-   "note": "Agent contacté le 18/11."
+   "statut": "visite",
+   "maj": "2026-11-20",
+   "note": "Visite samedi 28/11 à 11 h 30. Agent contacté le 18/11."
   },
   "9": {
    "visible": true,
@@ -86,8 +86,8 @@
   "14": {
    "visible": true,
    "statut": "ecarte",
-   "maj": "2026-11-19",
-   "note": "Sous compromis (18/11) : écartée."
+   "maj": "2026-11-20",
+   "note": "Offre acceptée (agent, 20/11) : plus disponible."
   },
   "15": {
    "visible": true,
@@ -97,9 +97,9 @@
   },
   "16": {
    "visible": true,
-   "statut": "questions",
-   "maj": "2026-11-19",
-   "note": "Retour de l'agent attendu. Visite possible samedi 28/11."
+   "statut": "visite",
+   "maj": "2026-11-20",
+   "note": "Visite vendredi 27/11 à 17 h 30."
   },
   "17": {
    "visible": true,
@@ -125,26 +125,26 @@
   "20": {
    "visible": true,
    "statut": "visite",
-   "maj": "2026-11-19",
-   "note": "Visite envisagée vendredi 27/11 à 14 h 30. Prix ferme selon l'agent. Taxe foncière 2 109 €. 3 clims, tout-à-l'égout."
+   "maj": "2026-11-20",
+   "note": "Visite vendredi 27/11 à 14 h 30. Prix ferme selon l'agent. Taxe foncière 2 109 €. 3 clims, tout-à-l'égout."
   },
   "21": {
    "visible": true,
    "statut": "questions",
-   "maj": "2026-11-19",
-   "note": "Retour de l'agent attendu. Visite possible samedi 28/11."
+   "maj": "2026-11-20",
+   "note": "Offre reçue, pas encore contresignée (agent, 20/11). Visite possible le vendredi seulement, créneaux déjà pris."
   },
   "22": {
    "visible": true,
    "statut": "visite",
-   "maj": "2026-11-19",
-   "note": "Visite envisagée vendredi 27/11 à 16 h. Entièrement climatisée, tout-à-l'égout (agent, 18/11). Diagnostics attendus le 19/11."
+   "maj": "2026-11-20",
+   "note": "Visite vendredi 27/11 à 16 h. Entièrement climatisée, tout-à-l'égout (agent, 18/11)."
   },
   "23": {
    "visible": true,
-   "statut": "etude",
-   "maj": "2026-11-19",
-   "note": "Taxe foncière 2 841 €, clim gainable partout, tout-à-l'égout. Diagnostics reçus. Bruit de l'autoroute à vérifier sur place."
+   "statut": "visite",
+   "maj": "2026-11-20",
+   "note": "Visite samedi 28/11 à 10 h. Taxe foncière 2 841 €, clim gainable, tout-à-l'égout. Bruit de l'autoroute à vérifier sur place."
   }
  },
  "suggestions": {
