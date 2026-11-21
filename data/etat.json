@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-20",
+ "maj": "2026-11-21",
  "contact": {
   "email": "n.becheroy@gmail.com",
   "tel": ""
@@ -145,6 +145,12 @@
    "statut": "visite",
    "maj": "2026-11-20",
    "note": "Visite samedi 28/11 à 10 h. Taxe foncière 2 841 €, clim gainable, tout-à-l'égout. Bruit de l'autoroute à vérifier sur place."
+  },
+  "24": {
+   "visible": true,
+   "statut": "visite",
+   "maj": "2026-11-21",
+   "note": "Visite proposée samedi 28/11 l'après-midi, créneau à confirmer par l'agent. Suite indépendante déclarée selon l'agent, sans cuisine."
   }
  },
  "suggestions": {
